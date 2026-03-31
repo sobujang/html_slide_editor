@@ -2469,40 +2469,40 @@ ${headHTML}</head><body>${inner}</body></html>`;
           }
         });
         const gW = groupRect.right - groupRect.left, gH = groupRect.bottom - groupRect.top;
-        const oCX = groupRect.left + gW / 2 + finalDX, oCY = groupRect.top + gH / 2 + finalDY;
+
+        // Initial values before snap
         const oL = groupRect.left + finalDX, oT = groupRect.top + finalDY;
         const oR = groupRect.right + finalDX, oB = groupRect.bottom + finalDY;
+        const oCX = oL + gW / 2, oCY = oT + gH / 2;
 
+        const SNAP_T = 5; // Reduced threshold for smoother feel
+        let bestX = { dist: SNAP_T, val: null, target: null }, bestY = { dist: SNAP_T, val: null, target: null };
+
+        const checkSnap = (targetV, currentV, axis) => {
+          const dist = Math.abs(currentV - targetV);
+          const best = axis === 'x' ? bestX : bestY;
+          if (dist < best.dist) {
+            best.dist = dist;
+            best.val = targetV - (currentV - (axis === 'x' ? finalDX : finalDY)) - (axis === 'x' ? groupRect.left : groupRect.top);
+            best.target = targetV;
+          }
+        };
+
+        // Targets: other elements
         snapshotOtherRects.forEach(obj => {
           const r = obj.rect;
           const cx = r.left + (r.right - r.left) / 2, cy = r.top + (r.bottom - r.top) / 2;
-
-          // X Snapping
-          const xTargets = [
-            { v: r.left, snapType: 'left' }, { v: r.right, snapType: 'right' }, { v: cx, snapType: 'center' }
-          ];
-          xTargets.forEach(t => {
-            [{ v: oL, off: 0 }, { v: oR, off: gW }, { v: oCX, off: gW / 2 }].forEach(curr => {
-              if (Math.abs(curr.v - t.v) < SNAP_THRESHOLD) {
-                finalDX = t.v - (curr.v - finalDX) - groupRect.left;
-                activeLines.push({ pos: t.v, type: 'v' });
-              }
-            });
-          });
-
-          // Y Snapping
-          const yTargets = [
-            { v: r.top, snapType: 'top' }, { v: r.bottom, snapType: 'bottom' }, { v: cy, snapType: 'middle' }
-          ];
-          yTargets.forEach(t => {
-            [{ v: oT, off: 0 }, { v: oB, off: gH }, { v: oCY, off: gH / 2 }].forEach(curr => {
-              if (Math.abs(curr.v - t.v) < SNAP_THRESHOLD) {
-                finalDY = t.v - (curr.v - finalDY) - groupRect.top;
-                activeLines.push({ pos: t.v, type: 'h' });
-              }
-            });
-          });
+          [r.left, r.right, cx].forEach(t => { [oL, oR, oCX].forEach(c => checkSnap(t, c, 'x')); });
+          [r.top, r.bottom, cy].forEach(t => { [oT, oB, oCY].forEach(c => checkSnap(t, c, 'y')); });
         });
+
+        // Targets: Slide boundaries (0, center, end)
+        // Note: 0 and slideW are local to iframe. 
+        [0, slideW / 2, slideW].forEach(t => { [oL, oR, oCX].forEach(c => checkSnap(t, c, 'x')); });
+        [0, slideH / 2, slideH].forEach(t => { [oT, oB, oCY].forEach(c => checkSnap(t, c, 'y')); });
+
+        if (bestX.val !== null) { finalDX = bestX.val; activeLines.push({ pos: bestX.target, type: 'v' }); }
+        if (bestY.val !== null) { finalDY = bestY.val; activeLines.push({ pos: bestY.target, type: 'h' }); }
 
         const frameRect = document.getElementById('slide-frame').getBoundingClientRect();
         activeLines.forEach(line => {
