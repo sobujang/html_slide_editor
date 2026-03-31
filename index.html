@@ -2001,6 +2001,8 @@ ${headHTML}</head><body>${inner}</body></html>`;
           return;
         }
 
+        if (dragStartX === null) return; // mousedown 없이 이동하는 경우 무시
+
         const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
 
         // Confirm drag after movement threshold
@@ -2042,6 +2044,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
         const wasDragging = isDraggingEl;
         if (lassoStart) { lassoStart = null; document.getElementById('lasso').style.display = 'none'; renderLayers(); renderPanel(); }
         isDraggingEl = false;
+        dragStartX = null; dragStartY = null; // 드래그 상태 완전 초기화
         if (wasDragging || wasLasso) {
           saveBack();
           pushHistory();
@@ -3299,6 +3302,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       isResizing = false;
       if (isDraggingEl) {
         isDraggingEl = false;
+        dragStartX = null; dragStartY = null; // 드래그 상태 완전 초기화
         saveBack();
         pushHistory();
       }
