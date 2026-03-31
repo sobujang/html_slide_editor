@@ -1097,6 +1097,155 @@
     .layer-item.locked .layer-name {
       color: var(--muted);
     }
+
+    .guide-line {
+      position: absolute;
+      background: #008cff;
+      z-index: 998;
+      pointer-events: none;
+      transition: opacity 0.1s;
+    }
+
+    .guide-line.v {
+      width: 1px;
+      height: 100%;
+      top: 0;
+    }
+
+    .guide-line.h {
+      height: 1px;
+      width: 100%;
+      left: 0;
+    }
+
+    /* DASHBOARD */
+    .dashboard-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: var(--bg);
+      z-index: 3000;
+      display: flex;
+      flex-direction: column;
+      padding: 40px;
+      overflow-y: auto;
+    }
+
+    .dash-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1000px;
+      margin: 0 auto 40px;
+      width: 100%;
+    }
+
+    .proj-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 20px;
+      max-width: 1000px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .proj-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .proj-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-3px);
+    }
+
+    .proj-name {
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+
+    .proj-meta {
+      font-size: 11px;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .proj-actions {
+      margin-top: 15px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .proj-del {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      opacity: 0;
+      transition: 0.2s;
+      background: none;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+    }
+
+    .proj-card:hover .proj-del {
+      opacity: 1;
+    }
+
+    /* PRESENTATION MODE */
+    #pres-mode {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: #000;
+      z-index: 4000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: none;
+    }
+
+    #pres-mode.active {
+      display: flex;
+    }
+
+    #pres-mode iframe {
+      width: 100vw;
+      height: 100vh;
+      border: none;
+    }
+
+    .pres-controls {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0, 0, 0, 0.5);
+      padding: 8px 16px;
+      border-radius: 30px;
+      display: flex;
+      gap: 20px;
+      color: white;
+      user-select: none;
+      opacity: 0;
+      transition: 0.3s;
+      z-index: 4001;
+    }
+
+    #pres-mode:hover .pres-controls {
+      opacity: 1;
+    }
   </style>
 </head>
 
@@ -1104,15 +1253,15 @@
 
   <!-- TOPBAR -->
   <div class="topbar">
-    <div class="logo">HTML_SLIDE_EDITOR</div>
+    <div class="logo" style="cursor:pointer" onclick="showDashboard()">HTML_SLIDE_EDITOR</div>
     <div class="tb-sep"></div>
     <div class="tb-group">
       <button class="tb-btn" onclick="openImportModal()">📂 HTML 불러오기</button>
-      <button class="tb-btn" onclick="loadProjectJSON()">📥 JSON 불러오기</button>
-      <button class="tb-btn" onclick="saveProjectJSON()">📤 JSON 저장</button>
+      <button class="tb-btn" onclick="saveProjectJSON()">📤 JSON 백업</button>
       <button class="tb-btn" onclick="addBlankSlide()">+ 슬라이드 추가</button>
     </div>
     <div class="tb-sep"></div>
+    <button class="tb-btn" style="background:#28a745; color:white" onclick="startPresentation()">▶ 발표 시작</button>
     <div class="tb-group">
       <button class="tb-btn" id="btn-undo" onclick="undo()" title="실행 취소 (Ctrl+Z)" disabled>↩️</button>
       <button class="tb-btn" id="btn-redo" onclick="redo()" title="다시 실행 (Ctrl+Y)" disabled>↪️</button>
@@ -1385,24 +1534,53 @@
     </div>
   </div>
 
-  <div class="toast" id="toast"></div>
-  <div class="prog" id="prog"></div>
+  <!-- PROJECT DASHBOARD -->
+  <div id="project-dashboard" class="dashboard-bg" style="display:none">
+    <div class="dash-header">
+      <h1 style="margin:0">나의 프로젝트</h1>
+      <div style="display:flex; gap:10px">
+        <button class="tb-btn primary" onclick="createNewProject()">+ 새 프로젝트</button>
+        <button class="tb-btn" onclick="importProjectJSON()">📥 JSON 백업 불러오기</button>
+      </div>
+    </div>
+    <div class="proj-grid" id="project-list">
+      <!-- Generated -->
+    </div>
+  </div>
+
+  <!-- PRESENTATION MODE -->
+  <div id="pres-mode">
+    <iframe id="pres-frame"></iframe>
+    <div class="pres-controls">
+      <span onclick="presPrev()" style="cursor:pointer">◀</span>
+      <span id="pres-num">1 / 1</span>
+      <span onclick="presNext()" style="cursor:pointer">▶</span>
+    </div>
+  </div>
+
+  <div id="prog" class="prog"></div>
+  <div id="toast" class="toast"></div>
+  <div id="lasso" class="lasso"></div>
+  <div id="guide-container" style="pointer-events:none; position:absolute; top:0; left:0; width:100%; height:100%">
+  </div>
 
   <script>
-    // ═══════════════════════════════════════════
-    // STATE
-    // ═══════════════════════════════════════════
+    const PROJECTS_KEY = 'pptx_editor_projects_list';
+    const SNAP_THRESHOLD = 8;
+
     let slides = [];
     let cur = 0;
+    let projects = [];
+    let currentProjId = null;
     let activeTab = 'element';
     let importTab = 'file';
-    let editMode = true;          // Always active
-    let selectedEls = [];         // Array of DOM elements
-    let selectedEl = null;        // Legacy single selection (backwards compatibility)
+    let editMode = true;
+    let selectedEls = [];
+    let selectedEl = null;
     let multiFiles = [];
     let snapDist = 10;
     let isDraggingEl = false;
-    let dragStartX, dragStartY, dragOffsets = []; // {el, l, t}
+    let dragStartX, dragStartY, dragOffsets = [];
     let copiedElsHtml = [];
     let slideW = 1280, slideH = 720;
     let canvasZoom = 1.0;
@@ -1414,14 +1592,14 @@
     let isResizing = false, resizeHandle = '';
     let resizeStartX = 0, resizeStartY = 0, resizeStartW = 0, resizeStartH = 0, resizeStartL = 0, resizeStartT = 0;
     let arrowDebounce = null, stripDebounce = null, codeDebounce = null, autoSaveDebounce = null;
+    let snapshotOtherRects = [];
 
     function pushHistory() {
-      // Don't save empty state — no slides = nothing to undo to
       if (!slides.length) return;
       const state = JSON.stringify({ slides, cur });
       if (undoStack.length > 0 && undoStack[undoStack.length - 1] === state) return;
       undoStack.push(state);
-      if (undoStack.length > 100) undoStack.shift(); // Increased to 100
+      if (undoStack.length > 100) undoStack.shift();
       redoStack = [];
       updateUndoBtns();
       scheduleAutoSave();
@@ -1435,27 +1613,12 @@
     }
     function undo() {
       if (undoStack.length <= 1) return;
-
       const oldSlidesCount = slides.length;
       const oldCur = cur;
-
       redoStack.push(undoStack.pop());
       const raw = JSON.parse(undoStack[undoStack.length - 1]);
-
-      if (Array.isArray(raw)) {
-        slides = raw;
-      } else {
-        slides = raw.slides;
-      }
-
-      // If the number of slides hasn't changed, try to stay on the current slide
-      // instead of jumping to where the state was originally recorded.
-      if (slides.length === oldSlidesCount) {
-        cur = oldCur;
-      } else {
-        cur = (raw && typeof raw.cur === 'number') ? raw.cur : 0;
-      }
-
+      if (Array.isArray(raw)) { slides = raw; } else { slides = raw.slides; }
+      if (slides.length === oldSlidesCount) { cur = oldCur; } else { cur = (raw && typeof raw.cur === 'number') ? raw.cur : 0; }
       if (cur < 0) cur = 0;
       if (cur >= slides.length) cur = slides.length - 1;
       selectedEls = []; selectedEl = null; hideOverlay();
@@ -1466,13 +1629,7 @@
       const stateStr = redoStack.pop();
       undoStack.push(stateStr);
       const raw = JSON.parse(stateStr);
-      if (Array.isArray(raw)) {
-        slides = raw;
-        cur = Math.min(cur, slides.length - 1);
-      } else {
-        slides = raw.slides;
-        cur = (typeof raw.cur === 'number') ? raw.cur : 0;
-      }
+      if (Array.isArray(raw)) { slides = raw; cur = Math.min(cur, slides.length - 1); } else { slides = raw.slides; cur = (typeof raw.cur === 'number') ? raw.cur : 0; }
       if (cur < 0) cur = 0;
       selectedEls = []; selectedEl = null; hideOverlay();
       renderAll();
@@ -1533,19 +1690,121 @@
       }
     }
 
-    function checkAutoSaveOnLoad() {
-      try {
-        const raw = localStorage.getItem(AUTOSAVE_KEY);
-        const meta = localStorage.getItem(AUTOSAVE_META_KEY);
-        if (!raw) return;
-        const m = meta ? JSON.parse(meta) : {};
-        const bar = document.getElementById('recover-bar');
-        if (bar) {
-          const span = bar.querySelector('span');
-          if (span && m.time) span.textContent = `⚠️ 자동저장 데이터 발견 (${m.time}, ${m.count || '?'}장)`;
-          bar.style.display = 'flex';
-        }
-      } catch (e) { }
+    // ═══════════════════════════════════════════
+    // PROJECT MANAGEMENT logic
+    // ═══════════════════════════════════════════
+    function loadProjects() {
+      const data = localStorage.getItem(PROJECTS_KEY);
+      projects = data ? JSON.parse(data) : [];
+    }
+
+    function saveProjects() {
+      localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+    }
+
+    function showDashboard() {
+      saveCurrentToProject();
+      loadProjects();
+      renderProjectList();
+      document.getElementById('project-dashboard').style.display = 'flex';
+    }
+
+    function hideDashboard() {
+      document.getElementById('project-dashboard').style.display = 'none';
+    }
+
+    function renderProjectList() {
+      const list = document.getElementById('project-list');
+      list.innerHTML = '';
+      projects.sort((a, b) => b.updatedAt - a.updatedAt).forEach(p => {
+        const div = document.createElement('div');
+        div.className = 'proj-card';
+        div.onclick = () => openProject(p.id);
+        div.innerHTML = `
+          <button class="proj-del" onclick="deleteProject('${p.id}', event)">✕</button>
+          <div class="proj-name">${p.name}</div>
+          <div class="proj-meta">
+            <span>슬라이드 ${p.slides.length}장</span>
+            <span>${new Date(p.updatedAt).toLocaleDateString()}</span>
+          </div>
+        `;
+        list.appendChild(div);
+      });
+    }
+
+    function createNewProject() {
+      const name = prompt('프로젝트 이름을 입력하세요', `무제 프로젝트 ${projects.length + 1}`);
+      if (!name) return;
+      const id = Date.now().toString();
+      const newProj = {
+        id, name, createdAt: Date.now(), updatedAt: Date.now(), slides: [], cur: 0
+      };
+      projects.push(newProj);
+      saveProjects();
+      openProject(id);
+    }
+
+    function deleteProject(id, e) {
+      e.stopPropagation();
+      if (!confirm('정말 삭제하시겠습니까?')) return;
+      projects = projects.filter(p => p.id !== id);
+      saveProjects();
+      renderProjectList();
+    }
+
+    function openProject(id) {
+      const p = projects.find(x => x.id === id);
+      if (!p) return;
+      currentProjId = id;
+      slides = p.slides;
+      cur = p.cur || 0;
+      if (!slides.length) addBlankSlide();
+      else renderAll();
+      hideDashboard();
+      undoStack = []; redoStack = [];
+      pushHistory();
+      toast(`'${p.name}' 로드됨`, 'ok');
+    }
+
+    function saveCurrentToProject() {
+      if (!currentProjId) return;
+      const p = projects.find(x => x.id === currentProjId);
+      if (p) {
+        p.slides = slides;
+        p.cur = cur;
+        p.updatedAt = Date.now();
+        saveProjects();
+      }
+    }
+
+    function saveProjectJSON() {
+      if (!currentProjId) { toast('프로젝트가 없습니다', 'err'); return; }
+      saveCurrentToProject();
+      const p = projects.find(x => x.id === currentProjId);
+      const data = JSON.stringify(p, null, 2);
+      const blob = new Blob([data], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = `${p.name}.json`; a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importProjectJSON() {
+      const input = document.createElement('input'); input.type = 'file'; input.accept = '.json';
+      input.onchange = ev => {
+        const file = ev.target.files[0];
+        const r = new FileReader();
+        r.onload = e => {
+          try {
+            const p = JSON.parse(e.target.result);
+            if (!p.id || !p.slides) throw new Error('올바른 프로젝트 형식이 아닙니다.');
+            p.updatedAt = Date.now();
+            projects.push(p); saveProjects(); renderProjectList();
+            toast('프로젝트 백업 불러오기 완료', 'ok');
+          } catch (err) { toast('불러오기 실패: ' + err.message, 'err'); }
+        };
+        r.readAsText(file);
+      };
+      input.click();
     }
 
     function recoverAutoSave() {
@@ -1575,7 +1834,6 @@
       if (!slides.length) { toast('저장할 슬라이드가 없습니다', 'err'); return; }
       const btn = document.getElementById('btn-manualsave');
       if (btn) { btn.textContent = '⏳ 저장 중...'; btn.disabled = true; }
-      // Force save immediately (bypasses debounce)
       clearTimeout(autoSaveTimer);
       try {
         const payload = JSON.stringify({ slides, cur, slideW, slideH });
@@ -1602,9 +1860,7 @@
       if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
       if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); manualSave(); }
 
-      // If typing in input/textarea, don't move or delete elements
       if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
-      // Also check iframe active element if possible, but simpler to just check tagName
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') return;
 
       if (e.key === 'Delete') { if (selectedEl) deleteElem(); }
@@ -1612,7 +1868,6 @@
       if (e.ctrlKey && e.key.toLowerCase() === 'v') { pasteElem(); }
       if (e.ctrlKey && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateElem(); }
 
-      // Arrow keys movement
       if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedEl) {
         e.preventDefault();
         const step = e.shiftKey ? 10 : 1;
@@ -1632,12 +1887,9 @@
     }
     window.addEventListener('keydown', handleShortcuts);
 
-    // Global click for menus
     window.addEventListener('click', () => {
       document.getElementById('ctx-menu').style.display = 'none';
-      document.getElementById('shape-menu').style.display = 'none';
     });
-
 
     // ═══════════════════════════════════════════
     // IMPORT
@@ -1876,23 +2128,6 @@
 ${headHTML}</head><body>${inner}</body></html>`;
     }
 
-    function changeAspectRatio(val) {
-      slideW = 1280;
-      slideH = (val === '16/9') ? 720 : 960;
-      document.getElementById('zoom-info').textContent = `${slideW}×${slideH}`;
-      const host = document.getElementById('slide-host');
-      host.style.width = slideW + 'px';
-      host.style.height = slideH + 'px';
-
-      slides.forEach(s => {
-        s.html = s.html.replace(/width:\d+px;height:\d+px/g, `width:${slideW}px;height:${slideH}px`);
-      });
-      renderAll();
-      setTimeout(fitToWindow, 50); // refit after change
-      pushHistory();
-      toast(`비율 변경됨: ${val}`, 'ok');
-    }
-
     function renderAll() {
       renderStrip();
       loadSlide(cur);
@@ -1948,7 +2183,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
       });
     }
     function selectSlide(i) {
-      // pending debounce를 즉시 flush해서 편집 내용 유실 방지
       if (saveDebounce) { clearTimeout(saveDebounce); saveBack(); saveDebounce = null; }
       if (historyDebounce) { clearTimeout(historyDebounce); pushHistory(); historyDebounce = null; }
       saveBack();
@@ -1964,7 +2198,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
     function loadSlide(i) {
       if (!slides[i]) return;
       const frame = document.getElementById('slide-frame');
-      frame.onload = null; // Clear previous handler to prevent stale saves
+      frame.onload = null;
       frame.srcdoc = slides[i].html;
       frame.onload = () => {
         injectEditMode();
@@ -2014,13 +2248,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
       pushHistory();
       toast('삭제됨');
     }
-    function moveSlide(dir) {
-      const ni = cur + dir;
-      if (ni < 0 || ni >= slides.length) return;
-      [slides[cur], slides[ni]] = [slides[ni], slides[cur]];
-      cur = ni;
-      renderAll();
-    }
     function reorder(from, to) {
       if (from === to) return;
       const [item] = slides.splice(from, 1);
@@ -2030,7 +2257,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
     }
 
     // ═══════════════════════════════════════════
-    // EDIT MODE (element selection in iframe)
+    // EDIT MODE
     // ═══════════════════════════════════════════
     function injectEditMode() {
       const doc = getDoc();
@@ -2049,7 +2276,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
         el.setAttribute('data-editable', '');
         if (!el.dataset.eid) el.dataset.eid = Math.random().toString(36).substr(2, 9);
 
-        // Inline edit
         el.ondblclick = (e) => {
           if (el.dataset.locked === 'true') return;
           e.stopPropagation();
@@ -2066,7 +2292,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
 
       let lassoStart = null;
       doc.onmousedown = (e) => {
-        // Don't prevent default for inputs or contenteditable to allow focus/typing
         if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.contentEditable !== 'true') {
           e.preventDefault();
         }
@@ -2078,7 +2303,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
             selectedEls = []; selectedEl = null; hideOverlay();
             doc.querySelectorAll('[data-editable]').forEach(x => x.classList.remove('selected'));
           }
-          // Start Lasso
           lassoStart = { x: e.clientX, y: e.clientY };
           const l = document.getElementById('lasso');
           l.style.display = 'block'; l.style.width = '0'; l.style.height = '0';
@@ -2090,7 +2314,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
         while (target && target !== doc.body && !target.hasAttribute('data-editable')) target = target.parentNode;
 
         if (target && target !== doc.body) {
-          if (target.dataset.locked === 'true') return; // Skip locked
+          if (target.dataset.locked === 'true') return;
           if (target.style.display === 'none' || target.style.visibility === 'hidden') return;
 
           if (isExclude) {
@@ -2110,16 +2334,15 @@ ${headHTML}</head><body>${inner}</body></html>`;
           renderPanel();
           renderLayers();
 
-          // Prepare for potential dragging
-          isDraggingEl = false; // Only start dragging after movement
+          isDraggingEl = false;
           dragStartX = e.clientX; dragStartY = e.clientY;
 
-          // Determine initial positions
+          snapshotOtherRects = Array.from(doc.querySelectorAll('[data-editable]:not(.selected)'))
+            .map(el => ({ el, rect: el.getBoundingClientRect() }));
+
           dragOffsets = selectedEls.map(el => {
             const cs = doc.defaultView.getComputedStyle(el);
             const rect = el.getBoundingClientRect();
-
-            // If not already absolute, we will convert it ONLY on first movement to avoid jumps on click
             return {
               el,
               l: parseFloat(el.style.left) || 0,
@@ -2139,7 +2362,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
           l.style.left = nx + 'px'; l.style.top = ny + 'px';
           l.style.width = nw + 'px'; l.style.height = nh + 'px';
 
-          // Select intersecting
           const lRect = { left: nx, top: ny, right: nx + nw, bottom: ny + nh };
           doc.querySelectorAll('[data-editable]').forEach(el => {
             const r = el.getBoundingClientRect();
@@ -2154,11 +2376,9 @@ ${headHTML}</head><body>${inner}</body></html>`;
           return;
         }
 
-        if (dragStartX === null) return; // mousedown 없이 이동하는 경우 무시
-
+        if (dragStartX === null) return;
         const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
 
-        // Confirm drag after movement threshold
         if (!isDraggingEl && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
           isDraggingEl = true;
           dragOffsets.forEach(obj => {
@@ -2181,9 +2401,80 @@ ${headHTML}</head><body>${inner}</body></html>`;
           });
         }
 
-        if (!isDraggingEl) return;
+        if (!isDraggingEl) {
+          clearGuidelines();
+          return;
+        }
+
+        let dX = e.clientX - dragStartX, dY = e.clientY - dragStartY;
+        const guideContainer = document.getElementById('guide-container');
+        guideContainer.innerHTML = '';
+
+        let snapX = null, snapY = null;
+        let activeLines = [];
+
+        let groupRect = null;
+        selectedEls.forEach(el => {
+          const r = el.getBoundingClientRect();
+          if (!groupRect) groupRect = { ...r };
+          else {
+            groupRect.left = Math.min(groupRect.left, r.left);
+            groupRect.top = Math.min(groupRect.top, r.top);
+            groupRect.right = Math.max(groupRect.right, r.right);
+            groupRect.bottom = Math.max(groupRect.bottom, r.bottom);
+          }
+        });
+        groupRect.centerX = (groupRect.left + groupRect.right) / 2;
+        groupRect.centerY = (groupRect.top + groupRect.bottom) / 2;
+
+        const currentL = groupRect.left + dX, currentT = groupRect.top + dY;
+        const currentR = groupRect.right + dX, currentB = groupRect.bottom + dY;
+        const currentCX = groupRect.centerX + dX, currentCY = groupRect.centerY + dY;
+
+        snapshotOtherRects.forEach(obj => {
+          const r = obj.rect;
+          const cx = (r.left + r.right) / 2, cy = (r.top + r.bottom) / 2;
+
+          [[currentL, r.left, 'left'], [currentR, r.right, 'right'], [currentCX, cx, 'center'],
+          [currentL, r.right, 'left'], [currentR, r.left, 'right']
+          ].forEach(([curV, targetV, key]) => {
+            if (Math.abs(curV - targetV) < SNAP_THRESHOLD) {
+              snapX = targetV - (curV - currentL) - groupRect.left;
+              activeLines.push({ pos: targetV, type: 'v' });
+            }
+          });
+
+          [[currentT, r.top, 'top'], [currentB, r.bottom, 'bottom'], [currentCY, cy, 'middle'],
+          [currentT, r.bottom, 'top'], [currentB, r.top, 'bottom']
+          ].forEach(([curV, targetV, key]) => {
+            if (Math.abs(curV - targetV) < SNAP_THRESHOLD) {
+              snapY = targetV - (curV - currentT) - groupRect.top;
+              activeLines.push({ pos: targetV, type: 'h' });
+            }
+          });
+        });
+
+        if (snapX !== null) dX = snapX;
+        if (snapY !== null) dY = snapY;
+
+        const frameRect = document.getElementById('slide-frame').getBoundingClientRect();
+        activeLines.forEach(line => {
+          const lDiv = document.createElement('div');
+          lDiv.className = 'guide-line ' + line.type;
+          if (line.type === 'v') {
+            lDiv.style.left = (frameRect.left + (line.pos * canvasZoom)) + 'px';
+            lDiv.style.top = frameRect.top + 'px';
+            lDiv.style.height = (slideH * canvasZoom) + 'px';
+          } else {
+            lDiv.style.top = (frameRect.top + (line.pos * canvasZoom)) + 'px';
+            lDiv.style.left = frameRect.left + 'px';
+            lDiv.style.width = (slideW * canvasZoom) + 'px';
+          }
+          guideContainer.appendChild(lDiv);
+        });
+
         dragOffsets.forEach(obj => {
-          let nl = obj.l + dx, nt = obj.t + dy;
+          let nl = obj.l + dX, nt = obj.t + dY;
           if (obj.el === selectedEl) {
             if (Math.abs(nl) < 10) nl = 0; if (Math.abs(nt) < 10) nt = 0;
           }
@@ -2192,1191 +2483,75 @@ ${headHTML}</head><body>${inner}</body></html>`;
         showOverlay(selectedEl);
       };
 
+      function clearGuidelines() {
+        const c = document.getElementById('guide-container');
+        if (c) c.innerHTML = '';
+      }
+
       doc.onmouseup = () => {
+        clearGuidelines();
         const wasLasso = !!lassoStart;
         const wasDragging = isDraggingEl;
         if (lassoStart) { lassoStart = null; document.getElementById('lasso').style.display = 'none'; renderLayers(); renderPanel(); }
         isDraggingEl = false;
-        dragStartX = null; dragStartY = null; // 드래그 상태 완전 초기화
+        dragStartX = null; dragStartY = null;
         if (wasDragging || wasLasso) {
           saveBack();
           pushHistory();
+          saveCurrentToProject();
         }
         renderLayers();
       };
       doc.onkeydown = handleShortcuts;
     }
 
-    function toggleShapeMenu() {
-      const m = document.getElementById('shape-menu');
-      m.style.display = m.style.display === 'block' ? 'none' : 'block';
-      event.stopPropagation();
-    }
-
-    function insertItem(type) {
-      const doc = getDoc();
-      if (!doc) return;
-      const el = doc.createElement('div');
-      el.setAttribute('data-editable', '');
-      el.style.position = 'absolute';
-      el.style.left = '50px';
-      el.style.top = '50px';
-
-      if (type === 'text') {
-        el.innerHTML = '새 텍스트';
-        el.style.fontSize = '32px';
-        el.style.padding = '10px';
-        el.style.color = '#333333';
-      } else if (type === 'box') {
-        el.style.width = '200px'; el.style.height = '150px';
-        el.style.backgroundColor = '#7c6cff';
-      } else if (type === 'rbox') {
-        el.style.width = '200px'; el.style.height = '150px';
-        el.style.backgroundColor = '#42d9a0';
-        el.style.borderRadius = '20px';
-      } else if (type === 'circle') {
-        el.style.width = '150px'; el.style.height = '150px';
-        el.style.backgroundColor = '#ffa94d';
-        el.style.borderRadius = '50%';
-      } else if (type === 'tri') {
-        el.style.width = '150px'; el.style.height = '150px';
-        el.style.backgroundColor = '#ff5370';
-        el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
-      } else if (type === 'line') {
-        el.style.width = '200px'; el.style.height = '4px';
-        el.style.backgroundColor = '#6b6b85';
-      }
-
-      doc.body.appendChild(el);
-      selectedEls = [el];
-      selectedEl = el;
-      if (type === 'image') {
-        const inp = document.createElement('input');
-        inp.type = 'file'; inp.accept = 'image/*';
-        inp.onchange = ev => {
-          const f = ev.target.files[0];
-          if (!f) return;
-          const reader = new FileReader();
-          reader.onload = e64 => {
-            const img = doc.createElement('img');
-            img.src = e64.target.result;
-            img.style.width = '100%'; img.style.display = 'block';
-            el.innerHTML = '';
-            el.appendChild(img);
-            el.style.width = '200px';
-            saveBack(); pushHistory(); renderLayers();
-          };
-          reader.readAsDataURL(f);
-        };
-        inp.click();
-      }
-      injectEditMode();
-      showOverlay(el);
-      saveBack();
-      pushHistory();
-      renderLayers();
-      toast('추가됨', 'ok');
-    }
-
-    // ═══════════════════════════════════════════
-    // LAYER PANEL LOGIC
-    // ═══════════════════════════════════════════
-    function renderLayers() {
-      const doc = getDoc();
-      if (!doc) return;
-      const list = document.getElementById('layer-list');
-      if (!list) return;
-
-      // Initialize delegation ONCE
-      if (!list.dataset.inited) {
-        list.dataset.inited = 'true';
-        list.addEventListener('click', (e) => {
-          const btn = e.target.closest('.layer-op') || e.target.closest('.layer-fold');
-          if (btn) {
-            e.stopPropagation();
-            e.preventDefault();
-            const action = btn.dataset.action;
-            const eid = btn.dataset.eid;
-            if (action === 'fold') toggleFold(eid);
-            else if (action === 'vis') toggleVisibility(eid, e);
-            else if (action === 'lock') toggleLock(eid, e);
-            else if (action === 'rename') renameLayer(eid, e);
-            else if (action === 'detach') detachByEid(eid, e);
-            else if (action === 'delete') deleteLayer(eid, e);
-            return;
-          }
-
-          const item = e.target.closest('.layer-item');
-          if (item) {
-            e.stopPropagation();
-            const eid = item.dataset.eid;
-            const el = doc.querySelector(`[data-eid="${eid}"]`);
-            if (!el) return;
-
-            const isMulti = e.shiftKey, isExclude = e.ctrlKey || e.metaKey;
-            if (isExclude) {
-              selectedEls = selectedEls.filter(x => x.dataset?.eid !== eid);
-              el.classList.remove('selected');
-            } else if (isMulti) {
-              if (!selectedEls.some(x => x.dataset?.eid === eid)) {
-                selectedEls.push(el);
-                el.classList.add('selected');
-              }
-            } else {
-              doc.querySelectorAll('[data-editable]').forEach(x => x.classList.remove('selected'));
-              selectedEls = [el];
-              el.classList.add('selected');
-            }
-
-            selectedEl = selectedEls[selectedEls.length - 1] || null;
-            if (selectedEl) showOverlay(selectedEl); else hideOverlay();
-            renderLayers();
-            renderPanel();
-          }
-        });
-      }
-
-      list.innerHTML = '';
-
-      const buildTree = (parent, depth = 0) => {
-        const children = [];
-        const gatherEditable = (node) => {
-          for (const child of node.children) {
-            if (child.hasAttribute('data-editable')) {
-              children.push(child);
-            } else {
-              gatherEditable(child);
-            }
-          }
-        };
-
-        if (depth === 0) gatherEditable(parent);
-        else {
-          for (const child of parent.children) {
-            if (child.hasAttribute('data-editable')) children.push(child);
-            else gatherEditable(child);
-          }
-        }
-
-        [...children].reverse().forEach(el => {
-          const eid = el.dataset.eid;
-          const hasEditableChildren = Array.from(el.children).some(c => c.hasAttribute('data-editable') || c.querySelector('[data-editable]'));
-          const isCollapsed = collapsedState.has(eid);
-
-          const item = renderLayerItem(el, depth, hasEditableChildren, isCollapsed);
-          list.appendChild(item);
-          if (!isCollapsed && hasEditableChildren) buildTree(el, depth + 1);
-        });
-      };
-
-      buildTree(doc.body);
-    }
-
-    function renderLayerItem(el, depth, isParent, isCollapsed) {
-      const eid = el.dataset.eid;
-      const isActive = selectedEls.some(x => x.dataset?.eid === eid);
-      const isHidden = el.style.display === 'none' || el.style.visibility === 'hidden';
-      const isLocked = el.dataset.locked === 'true';
-
-      const item = document.createElement('div');
-      item.className = 'layer-item' + (isActive ? ' active' : '') + (isHidden ? ' hidden' : '') + (isLocked ? ' locked' : '');
-      item.style.paddingLeft = (depth * 14) + 'px';
-      item.dataset.eid = eid;
-
-      let icon = '🔳';
-      if (el.querySelector('img')) icon = '🖼️';
-      else if (el.style.clipPath) icon = '▲';
-      else if (el.style.borderRadius === '50%') icon = '⭕';
-      else if (el.innerText.trim().length > 0) icon = 'T';
-
-      const name = el.dataset.name || el.innerText.trim().substring(0, 18) || '컴포넌트';
-      const foldIcon = isParent ? (isCollapsed ? '▸' : '▾') : '<span style="display:inline-block;width:10px"></span>';
-
-      item.innerHTML = `
-        <div class="layer-drag" title="드래그하여 순서 변경">⠿</div>
-        <div class="layer-fold" data-action="fold" data-eid="${eid}" style="font-size:10px;min-width:12px;text-align:center">${foldIcon}</div>
-        <div class="layer-icon">${icon}</div>
-        <div class="layer-name">${name}</div>
-        <div class="layer-ops">
-          <button class="layer-op btn-vis ${isHidden ? '' : 'active'}" data-action="vis" data-eid="${eid}" title="표시/숨기기">${isHidden ? '👁️‍🗨️' : '👁️'}</button>
-          <button class="layer-op btn-lock ${isLocked ? 'active' : ''}" data-action="lock" data-eid="${eid}" title="잠금/해제">${isLocked ? '🔒' : '🔓'}</button>
-          <button class="layer-op btn-rename" data-action="rename" data-eid="${eid}" title="이름 변경">✏️</button>
-          <button class="layer-op btn-detach" data-action="detach" data-eid="${eid}" title="부모에서 분리">⎋</button>
-          <button class="layer-op btn-delete" data-action="delete" data-eid="${eid}" title="삭제">✕</button>
-        </div>
-      `;
-
-      const dragHandle = item.querySelector('.layer-drag');
-      dragHandle.draggable = true;
-      dragHandle.addEventListener('dragstart', (e) => {
-        if (el.dataset.locked === 'true') { e.preventDefault(); return; }
-        e.dataTransfer.setData('text/plain', eid);
-        item.classList.add('dragging');
-      });
-      dragHandle.addEventListener('dragend', () => item.classList.remove('dragging'));
-
-      item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-over'); });
-      item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
-      item.addEventListener('drop', (e) => {
-        e.preventDefault();
-        item.classList.remove('drag-over');
-        const fromEid = e.dataTransfer.getData('text/plain');
-        if (fromEid && fromEid !== eid) reorderLayer(fromEid, eid);
-      });
-
-      return item;
-    }
-
-    function toggleFold(eid) {
-      if (collapsedState.has(eid)) collapsedState.delete(eid);
-      else collapsedState.add(eid);
-      renderLayers();
-    }
-
-    function toggleVisibility(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      el.style.display = (el.style.display === 'none') ? '' : 'none';
-      if (el.style.display === 'none' && selectedEls.some(x => x.dataset?.eid === eid)) hideOverlay();
-      renderLayers();
-      saveBack();
-    }
-
-    function toggleLock(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      el.dataset.locked = (el.dataset.locked === 'true') ? 'false' : 'true';
-      if (el.dataset.locked === 'true' && selectedEls.some(x => x.dataset?.eid === eid)) hideOverlay();
-      renderLayers();
-      saveBack();
-    }
-
-    function renameLayer(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      const newName = prompt('컴포넌트 이름을 입력하세요:', el.dataset.name || '');
-      if (newName !== null) {
-        el.dataset.name = newName;
-        renderLayers();
-        saveBack();
-      }
-    }
-
-    function deleteLayer(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      if (!confirm('정말 삭제하시겠습니까?')) return;
-      el.remove();
-      selectedEls = selectedEls.filter(x => x.dataset?.eid !== eid);
-      selectedEl = selectedEls[selectedEls.length - 1] || null;
-      if (!selectedEl) hideOverlay(); else showOverlay(selectedEl);
-      renderLayers();
-      saveBack();
-      pushHistory();
-    }
-
-    function detachByEid(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el || !el.parentElement || el.parentElement === doc.body) return;
-      doc.body.appendChild(el);
-      renderLayers();
-      saveBack();
-      pushHistory();
-      toast('그룹에서 분리됨', 'ok');
-    }
-
-    function moveLayer(eid, dir, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      if (dir === 1) { if (el.nextElementSibling) el.parentNode.insertBefore(el.nextElementSibling, el); }
-      else { if (el.previousElementSibling) el.parentNode.insertBefore(el, el.previousElementSibling); }
-      saveBack(); pushHistory(); renderLayers(); showOverlay(el);
-    }
-
-    function reorderLayer(fromEid, toEid) {
-      const doc = getDoc();
-      const fromEl = doc.querySelector(`[data-eid="${fromEid}"]`);
-      const toEl = doc.querySelector(`[data-eid="${toEid}"]`);
-      if (!fromEl || !toEl || toEl.contains(fromEl)) return;
-      toEl.after(fromEl);
-      saveBack(); pushHistory(); renderLayers();
-    }
-
-
-    // ═══════════════════════════════════════════
-    // SELECTION OVERLAY
-    // ═══════════════════════════════════════════
-    function getElemRectInSlide(el) {
-      const frame = document.getElementById('slide-frame');
-      const iframeBody = frame.contentDocument && frame.contentDocument.body;
-      let left = 0, top = 0, cur = el;
-      while (cur && cur !== iframeBody) {
-        left += cur.offsetLeft - (cur.offsetParent ? cur.offsetParent.scrollLeft || 0 : 0);
-        top += cur.offsetTop - (cur.offsetParent ? cur.offsetParent.scrollTop || 0 : 0);
-        cur = cur.offsetParent;
-      }
-      return { left, top, width: el.offsetWidth, height: el.offsetHeight };
-    }
-
-    function showOverlay(el) {
-      if (!el) { hideOverlay(); return; }
-      const overlay = document.getElementById('sel-overlay');
-      const rect = getElemRectInSlide(el);
-
-      overlay.style.display = 'block';
-      overlay.style.left = rect.left + 'px';
-      overlay.style.top = rect.top + 'px';
-      overlay.style.width = rect.width + 'px';
-      overlay.style.height = rect.height + 'px';
-
-      overlay.querySelectorAll('.sel-handle').forEach(handle => {
-        handle.onmousedown = (e) => startResize(e, handle.dataset.h, el);
-      });
-    }
-    function hideOverlay() {
-      document.getElementById('sel-overlay').style.display = 'none';
-    }
-
-    function startResize(e, handlePos, el) {
-      e.preventDefault(); e.stopPropagation();
-      isResizing = true; resizeHandle = handlePos;
-      resizeStartX = e.clientX; resizeStartY = e.clientY;
-      const frame = document.getElementById('slide-frame');
-      const scale = frame.offsetWidth / slideW;
-
-      resizeStartW = el.offsetWidth;
-      resizeStartH = el.offsetHeight;
-      resizeStartL = parseFloat(el.style.left) || 0;
-      resizeStartT = parseFloat(el.style.top) || 0;
-
-      const onMove = (ev) => {
-        if (!isResizing) return;
-
-        // Normalize coordinates if event comes from iframe
-        let clientX = ev.clientX;
-        let clientY = ev.clientY;
-        if (ev.currentTarget !== window && ev.currentTarget !== document) {
-          const rect = frame.getBoundingClientRect();
-          clientX += rect.left;
-          clientY += rect.top;
-        }
-
-        const dx = (clientX - resizeStartX) / scale;
-        const dy = (clientY - resizeStartY) / scale;
-
-        const isProportional = ev.shiftKey;
-        const ratio = resizeStartW / resizeStartH;
-
-        if (handlePos.includes('r')) {
-          let nw = Math.max(10, resizeStartW + dx);
-          if (isProportional) {
-            let nh = nw / ratio;
-            el.style.width = nw + 'px';
-            el.style.height = nh + 'px';
-          } else {
-            el.style.width = nw + 'px';
-          }
-        }
-        if (handlePos.includes('l')) {
-          let nw = Math.max(10, resizeStartW - dx);
-          if (isProportional) {
-            let nh = nw / ratio;
-            el.style.width = nw + 'px';
-            el.style.height = nh + 'px';
-            el.style.left = (resizeStartL + dx) + 'px';
-          } else {
-            el.style.width = nw + 'px';
-            el.style.left = (resizeStartL + dx) + 'px';
-          }
-        }
-        if (handlePos.includes('b')) {
-          let nh = Math.max(10, resizeStartH + dy);
-          if (isProportional) {
-            if (!handlePos.includes('r') && !handlePos.includes('l')) {
-              let nw = nh * ratio;
-              el.style.width = nw + 'px';
-              el.style.height = nh + 'px';
-            }
-          } else {
-            el.style.height = nh + 'px';
-          }
-        }
-        if (handlePos.includes('t')) {
-          let nh = Math.max(10, resizeStartH - dy);
-          if (isProportional) {
-            if (!handlePos.includes('r') && !handlePos.includes('l')) {
-              let nw = nh * ratio;
-              el.style.width = nw + 'px';
-              el.style.height = nh + 'px';
-              el.style.top = (resizeStartT + dy) + 'px';
-            }
-          } else {
-            el.style.height = nh + 'px';
-            el.style.top = (resizeStartT + dy) + 'px';
-          }
-        }
-        showOverlay(el);
-      };
-
-      const onUp = () => {
-        isResizing = false;
-        window.removeEventListener('mousemove', onMove);
-        window.removeEventListener('mouseup', onUp);
-        const doc = getDoc();
-        if (doc) {
-          doc.removeEventListener('mousemove', onMove);
-          doc.removeEventListener('mouseup', onUp);
-        }
-        saveBack();
-        pushHistory();
-      };
-
-      window.addEventListener('mousemove', onMove);
-      window.addEventListener('mouseup', onUp);
-      const doc = getDoc();
-      if (doc) {
-        doc.addEventListener('mousemove', onMove);
-        doc.addEventListener('mouseup', onUp);
-      }
-    }
-
-    // ═══════════════════════════════════════════
-    // ELEMENT OPS
-    // ═══════════════════════════════════════════
-    function editSelectedElem() {
-      if (!selectedEl) return;
-      const doc = getDoc();
-      const cs = doc.defaultView.getComputedStyle(selectedEl);
-      document.getElementById('em-content').value = selectedEl.innerHTML;
-      document.getElementById('em-fsize').value = parseInt(cs.fontSize) || '';
-      document.getElementById('em-fweight').value = cs.fontWeight || '';
-      document.getElementById('em-fcolor').value = rgb2hex(cs.color) || '#000000';
-      document.getElementById('em-fcolor-txt').value = rgb2hex(cs.color) || '#000000';
-      document.getElementById('em-bgcolor').value = rgb2hex(cs.backgroundColor) || '#ffffff';
-      document.getElementById('em-bgcolor-txt').value = rgb2hex(cs.backgroundColor) || '#ffffff';
-      document.getElementById('em-width').value = selectedEl.style.width || '';
-      document.getElementById('em-height').value = selectedEl.style.height || '';
-      document.getElementById('em-extra-css').value = selectedEl.getAttribute('style') || '';
-      document.getElementById('em-radius').value = parseInt(cs.borderRadius) || 0;
-      document.getElementById('pfield-radius').style.display = (selectedEl.tagName === 'DIV' && !selectedEl.innerText) ? 'block' : 'none';
-      syncColorPicker('em-fcolor', 'em-fcolor-txt');
-      syncColorPicker('em-bgcolor', 'em-bgcolor-txt');
-      document.getElementById('elem-modal').style.display = 'flex';
-    }
-    function closeElemModal() {
-      document.getElementById('elem-modal').style.display = 'none';
-    }
-    function applyElemEdit() {
-      if (!selectedEl) return;
-      const content = document.getElementById('em-content').value;
-      const fsize = document.getElementById('em-fsize').value;
-      const fweight = document.getElementById('em-fweight').value;
-      const fcolor = document.getElementById('em-fcolor').value;
-      const bgcolor = document.getElementById('em-bgcolor').value;
-      const width = document.getElementById('em-width').value;
-      const height = document.getElementById('em-height').value;
-      const extra = document.getElementById('em-extra-css').value;
-      const radius = document.getElementById('em-radius').value;
-
-      selectedEl.innerHTML = content;
-      if (fsize) selectedEl.style.fontSize = fsize + 'px';
-      if (fweight) selectedEl.style.fontWeight = fweight;
-      if (fcolor) selectedEl.style.color = fcolor;
-      if (bgcolor) selectedEl.style.backgroundColor = bgcolor;
-
-      if (width) selectedEl.style.width = width + 'px';
-      if (height) selectedEl.style.height = height + 'px';
-      if (radius && !selectedEl.innerText) selectedEl.style.borderRadius = radius + 'px';
-
-      if (extra) {
-        const temp = document.createElement('div');
-        temp.style.cssText = extra;
-        for (let i = 0; i < temp.style.length; i++) {
-          const prop = temp.style[i];
-          selectedEl.style.setProperty(prop, temp.style.getPropertyValue(prop));
-        }
-      }
-
-
-      saveBack();
-      pushHistory();
-      showOverlay(selectedEl);
-      closeElemModal();
-      toast('적용됨', 'ok');
-    }
-
-    function copyElem() {
-      if (!selectedEl) return;
-      copiedElemHtml = selectedEl.outerHTML;
-      toast('요소 복사됨', 'ok');
-    }
-
-    function pasteElem() {
-      if (!copiedElemHtml) return;
-      const doc = getDoc();
-      if (!doc) return;
-      const temp = doc.createElement('div');
-      temp.innerHTML = copiedElemHtml;
-      const clone = temp.firstChild;
-      clone.style.left = (parseFloat(clone.style.left) || 0) + 20 + 'px';
-      clone.style.top = (parseFloat(clone.style.top) || 0) + 20 + 'px';
-      clone.classList.remove('selected');
-      doc.body.appendChild(clone);
-
-      selectedEl = clone;
-      injectEditMode();
-      showOverlay(selectedEl);
-      saveBack();
-      pushHistory();
-      toast('요소 붙여넣기됨', 'ok');
-    }
-    function duplicateElem() {
-      if (!selectedEl) return;
-      const doc = getDoc();
-      const clone = selectedEl.cloneNode(true);
-      clone.style.left = (parseFloat(selectedEl.style.left) || 0) + 20 + 'px';
-      clone.style.top = (parseFloat(selectedEl.style.top) || 0) + 20 + 'px';
-      clone.classList.remove('selected');
-      selectedEl.parentNode.insertBefore(clone, selectedEl.nextSibling);
-
-      selectedEl = clone;
-      saveBack();
-      pushHistory();
-      injectEditMode();
-      showOverlay(selectedEl);
-      toast('요소 복제됨', 'ok');
-    }
-    function deleteElem() {
-      if (!selectedEl) return;
-      selectedEl.remove();
-      selectedEl = null;
-      hideOverlay();
-      saveBack();
-      pushHistory();
-      toast('요소 삭제됨');
-    }
-
-    function detachElem() {
-      if (!selectedEl) return;
-      const doc = getDoc();
-      if (selectedEl.parentNode === doc.body) { toast('이미 최상위 요소입니다', 'err'); return; }
-      const pos = getElemRectInSlide(selectedEl);
-      selectedEl.style.width = pos.width + 'px';
-      selectedEl.style.height = pos.height + 'px';
-      selectedEl.style.position = 'absolute';
-      selectedEl.style.left = pos.left + 'px';
-      selectedEl.style.top = pos.top + 'px';
-      doc.body.appendChild(selectedEl);
-      showOverlay(selectedEl);
-      saveBack();
-      pushHistory();
-      renderLayers();
-      toast('분리됨', 'ok');
-    }
-
-    function detachByEid(eid, e) {
-      if (e) e.stopPropagation();
-      const doc = getDoc();
-      const el = doc.querySelector(`[data-eid="${eid}"]`);
-      if (!el) return;
-      selectedEl = el;
-      selectedEls = [el];
-      detachElem();
-    }
-
-    // ═══════════════════════════════════════════
-    // ALIGN
-    // ═══════════════════════════════════════════
-    function alignElem(type) {
-      if (!selectedEls.length) { toast('요소를 선택하세요', 'err'); return; }
-      selectedEls.forEach(el => {
-        const W = slideW, H = slideH;
-        const w = el.offsetWidth, h = el.offsetHeight;
-
-        // Ensure body in iframe is relative
-        const doc = getDoc();
-        if (doc.body.style.position !== 'relative') doc.body.style.position = 'relative';
-
-        // Target absolute positions (relative to slide body)
-        let targetL = parseFloat(el.style.left) || 0;
-        let targetT = parseFloat(el.style.top) || 0;
-
-        if (type === 'left') targetL = 0;
-        if (type === 'center') targetL = (W - w) / 2;
-        if (type === 'right') targetL = (W - w);
-        if (type === 'top') targetT = 0;
-        if (type === 'middle') targetT = (H - h) / 2;
-        if (type === 'bottom') targetT = (H - h);
-        if (type === 'hcenter') { targetL = (W - w) / 2; targetT = (H - h) / 2; }
-
-        if (type.includes('left') || type.includes('center') || type.includes('right') || type === 'hcenter') {
-          el.style.left = (targetL) + 'px';
-        }
-        if (type.includes('top') || type.includes('middle') || type.includes('bottom') || type === 'hcenter') {
-          el.style.top = (targetT) + 'px';
-        }
-        if (type === 'fill') { el.style.left = '0'; el.style.top = '0'; el.style.width = W + 'px'; el.style.height = H + 'px'; }
-      });
-      saveBack();
-      pushHistory();
-      showOverlay(selectedEl);
-      toast('정렬 적용됨', 'ok');
-    }
-
-    function moveLayer(dir) {
-      if (!selectedEl) { toast('요소를 선택하세요', 'err'); return; }
-      const parent = selectedEl.parentNode;
-      if (!parent) return;
-
-      // When moving front/back, we should also manage z-index to handle cases 
-      // where other elements have explicit z-index values.
-      const siblings = Array.from(parent.children).filter(el => el !== selectedEl && el.hasAttribute('data-editable'));
-      const zIndexes = siblings.map(el => parseInt(window.getComputedStyle(el).zIndex) || 0);
-      const maxZ = Math.max(0, ...zIndexes);
-      const minZ = Math.min(0, ...zIndexes);
-
-      if (dir === 'front') {
-        parent.appendChild(selectedEl);
-        selectedEl.style.zIndex = maxZ + 1;
-      } else if (dir === 'back') {
-        parent.insertBefore(selectedEl, parent.firstChild);
-        selectedEl.style.zIndex = Math.min(0, minZ - 1);
-      } else if (dir === 'forward') {
-        const next = selectedEl.nextElementSibling;
-        if (next) {
-          parent.insertBefore(selectedEl, next.nextElementSibling);
-          const nextZ = parseInt(window.getComputedStyle(next).zIndex) || 0;
-          selectedEl.style.zIndex = nextZ + 1;
-        }
-      } else if (dir === 'backward') {
-        const prev = selectedEl.previousElementSibling;
-        if (prev) {
-          parent.insertBefore(selectedEl, prev);
-          const prevZ = parseInt(window.getComputedStyle(prev).zIndex) || 0;
-          selectedEl.style.zIndex = Math.max(0, prevZ - 1);
-        }
-      }
-      saveBack();
-      pushHistory();
-      renderLayers();
-      showOverlay(selectedEl);
-      toast('순서 변경됨', 'ok');
-    }
-
-    // ═══════════════════════════════════════════
-    // PROJECT JSON
-    // ═══════════════════════════════════════════
-    function saveProjectJSON() {
+    // --- PRESENTATION MODE logic ---
+    let presIdx = 0;
+    function startPresentation() {
       if (!slides.length) return;
-      const data = { slides, slideW, slideH, version: '1.2' };
-      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `slides_${new Date().getTime()}.json`;
-      a.click();
-      toast('JSON 프로젝트 저장됨', 'ok');
-    }
-
-    function loadProjectJSON() {
-      const inp = document.createElement('input');
-      inp.type = 'file'; inp.accept = '.json';
-      inp.onchange = (e) => {
-        const f = e.target.files[0];
-        if (!f) return;
-        const r = new FileReader();
-        r.onload = (ev) => {
-          try {
-            const data = JSON.parse(ev.target.result);
-            if (data.slides) {
-              slides = data.slides;
-              slideW = data.slideW || 1280;
-              slideH = data.slideH || 720;
-              document.getElementById('ratio-select').value = (slideH === 720) ? '16/9' : '4/3';
-              cur = 0;
-              renderAll();
-              pushHistory();
-              toast('프로젝트 불러오기 완료', 'ok');
-            }
-          } catch (err) { toast('잘못된 JSON 형식입니다', 'err'); }
-        };
-        r.readAsText(f);
-      };
-      inp.click();
-    }
-
-    // ═══════════════════════════════════════════
-    // PANEL
-    // ═══════════════════════════════════════════
-    function setTab(t) {
-      activeTab = t;
-      document.querySelectorAll('.ptab').forEach((el, i) => {
-        el.classList.toggle('active', ['code', 'element', 'slide', 'align'][i] === t);
-      });
-      renderPanel();
-    }
-
-    function renderPanel() {
-      const body = document.getElementById('panel-body');
-      if (!slides.length) { body.innerHTML = '<div class="empty" style="height:200px"><p>슬라이드를 추가하세요</p></div>'; return; }
-      if (activeTab === 'code') {
-        // If code editor already exists, update content only if slide changed to preserve focus/scroll
-        const existing = document.getElementById('curr-code');
-        if (!existing || existing.dataset.slideIdx != cur) {
-          renderCodePanel(body);
-        }
-        syncCodeEditor();
-      }
-      else if (activeTab === 'element') renderElementPanel(body);
-      else if (activeTab === 'slide') renderSlidePanel(body);
-      else renderAlignPanel(body);
-    }
-
-    function renderCodePanel(body) {
-      if (!slides[cur]) return;
-      const s = slides[cur];
-      body.innerHTML = `
-    <div class="psection">
-      <h4>슬라이드 HTML 코드</h4>
-      <textarea class="code-editor" id="curr-code" data-slide-idx="${cur}" style="min-height:450px" oninput="liveUpdateHTML(this.value)">${esc(s.html)}</textarea>
-    </div>`;
-    }
-
-    function syncCodeEditor() {
-      if (activeTab !== 'code' || !selectedEl) return;
-      const eid = selectedEl.dataset.eid;
-      if (!eid) return;
-
-      const textarea = document.getElementById('curr-code');
-      if (!textarea) return;
-
-      const code = textarea.value;
-      const searchStr = `data-eid="${eid}"`;
-      const index = code.indexOf(searchStr);
-
-      if (index !== -1) {
-        const startPos = code.lastIndexOf('<', index);
-        const tagEnd = code.indexOf('>', index);
-        const endPos = (tagEnd !== -1) ? tagEnd + 1 : index + searchStr.length;
-
-        textarea.focus();
-        textarea.setSelectionRange(startPos, endPos);
-
-        // Scroll into view
-        const linesBefore = code.substring(0, startPos).split('\n').length;
-        const totalLines = code.split('\n').length;
-        const scrollRatio = linesBefore / totalLines;
-        textarea.scrollTop = (textarea.scrollHeight * scrollRatio) - (textarea.clientHeight / 2);
-      }
-    }
-
-    function liveUpdateHTML(val) {
-      if (!slides[cur]) return;
-      slides[cur].html = val;
-      const frame = document.getElementById('slide-frame');
-      // Update frame without full reload if possible, but srcdoc is easier
-      frame.srcdoc = val;
-      pushHistoryDebounced();
-    }
-
-    function renderElementPanel(body) {
-      if (!selectedEl) {
-        body.innerHTML = `<div class="empty"><div class="ei">🖱️</div><h3>요소 미선택</h3><p>슬라이드 내 요소를 클릭하세요.</p></div>`;
-        return;
-      }
-      const doc = getDoc();
-      const cs = doc.defaultView.getComputedStyle(selectedEl);
-      const isText = (selectedEl.innerText.trim().length > 0 || selectedEl.tagName === 'P' || selectedEl.tagName === 'SPAN' || selectedEl.tagName.startsWith('H'));
-      const hexC = rgb2hex(cs.color), hexB = rgb2hex(cs.backgroundColor);
-
-      body.innerHTML = `
-    <div class="psection">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
-        <h4 style="margin:0">내용 (HTML)</h4>
-        <button class="tb-btn" style="font-size:10px; padding:2px 6px" onclick="setTab('code')">코드에서 보기 ↗</button>
-      </div>
-      <textarea oninput="applyProp('innerHTML', this.value)" style="min-height:60px">${selectedEl.innerHTML}</textarea>
-    </div>
-    ${isText ? `
-    <div class="psection">
-      <h4>글자 스타일</h4>
-      <div class="row2">
-        <div class="pfield"><label>크기</label><input type="number" value="${parseInt(cs.fontSize) || ''}" oninput="applyStyle('fontSize', this.value+'px')"></div>
-        <div class="pfield"><label>글꼴</label>
-          <select onchange="applyStyle('fontFamily', this.value)">
-            <option value="sans-serif" ${cs.fontFamily.includes('sans-serif') ? 'selected' : ''}>Sans Serif</option>
-            <option value="'Noto Sans KR', sans-serif" ${cs.fontFamily.includes('Noto Sans KR') ? 'selected' : ''}>Noto Sans KR</option>
-            <option value="'Pretendard', sans-serif" ${cs.fontFamily.includes('Pretendard') ? 'selected' : ''}>Pretendard</option>
-            <option value="serif" ${cs.fontFamily.includes('serif') ? 'selected' : ''}>Serif</option>
-          </select>
-        </div>
-      </div>
-      <div class="pfield"><label>글자 색상</label>
-        <div class="color-row"><input type="color" value="${hexC}" oninput="applyStyle('color', this.value)"><input type="text" value="${hexC}" oninput="applyStyle('color', this.value)"></div>
-      </div>
-    </div>` : ''}
-    <div class="psection">
-      <h4>레이아웃</h4>
-      <div class="pfield"><label>배경색</label>
-        <div class="color-row"><input type="color" value="${hexB}" oninput="applyStyle('backgroundColor', this.value)"><input type="text" value="${hexB}" oninput="applyStyle('backgroundColor', this.value)"></div>
-      </div>
-      <div class="row2">
-        <div class="pfield"><label>너비</label><input type="number" value="${parseInt(selectedEl.style.width) || ''}" placeholder="auto" oninput="applyStyle('width', this.value+'px')"></div>
-        <div class="pfield"><label>높이</label><input type="number" value="${parseInt(selectedEl.style.height) || ''}" placeholder="auto" oninput="applyStyle('height', this.value+'px')"></div>
-      </div>
-      <div class="row2">
-        <div class="pfield"><label>X</label><input type="number" value="${parseInt(selectedEl.style.left) || 0}" oninput="applyStyle('left', this.value+'px')"></div>
-        <div class="pfield"><label>Y</label><input type="number" value="${parseInt(selectedEl.style.top) || 0}" oninput="applyStyle('top', this.value+'px')"></div>
-      </div>
-      <div class="pfield"><label>Z-Index (레이어 순서)</label><input type="number" value="${parseInt(cs.zIndex) || 0}" oninput="applyStyle('zIndex', this.value)"></div>
-    </div>
-    
-    <div class="psection">
-      <h4>스타일 효과</h4>
-      <div class="pfield">
-        <label>불투명도 (Opacity) <span style="float:right" id="val-opacity">${Math.round((parseFloat(cs.opacity) || 1) * 100)}%</span></label>
-        <input type="range" min="0" max="100" value="${(parseFloat(cs.opacity) || 1) * 100}" 
-               oninput="applyStyle('opacity', this.value/100); document.getElementById('val-opacity').textContent=this.value+'%'">
-      </div>
-      <div class="row2">
-        <div class="pfield"><label>테두리 두께</label>
-          <input type="number" value="${parseInt(cs.borderWidth) || 0}" oninput="applyStyle('borderWidth', this.value+'px'); if(this.value>0 && !selectedEl.style.borderStyle) applyStyle('borderStyle', 'solid')">
-        </div>
-        <div class="pfield"><label>스타일</label>
-          <select onchange="applyStyle('borderStyle', this.value)">
-            <option value="none" ${cs.borderStyle === 'none' ? 'selected' : ''}>없음</option>
-            <option value="solid" ${cs.borderStyle === 'solid' ? 'selected' : ''}>실선</option>
-            <option value="dashed" ${cs.borderStyle === 'dashed' ? 'selected' : ''}>점선</option>
-            <option value="dotted" ${cs.borderStyle === 'dotted' ? 'selected' : ''}>도트</option>
-          </select>
-        </div>
-      </div>
-      <div class="pfield"><label>테두리 색상</label>
-        <div class="color-row">
-          <input type="color" value="${rgb2hex(cs.borderColor) || '#000000'}" oninput="applyStyle('borderColor', this.value)">
-          <input type="text" value="${rgb2hex(cs.borderColor) || '#000000'}" oninput="applyStyle('borderColor', this.value)">
-        </div>
-      </div>
-      <div class="pfield">
-        <label>그림자 (Box Shadow)</label>
-        <div class="row2">
-          <input type="number" placeholder="X" style="width:25%" oninput="updateShadow(this.value, 0)">
-          <input type="number" placeholder="Y" style="width:25%" oninput="updateShadow(this.value, 1)">
-          <input type="number" placeholder="Blur" style="width:25%" oninput="updateShadow(this.value, 2)">
-          <input type="color" style="width:20%;height:30px;padding:2px" oninput="updateShadow(this.value, 3)">
-        </div>
-      </div>
-    </div>
-
-</div>
-
-  <div class="psection">
-    <div class="row2">
-      <button class="apply-btn ghost" onclick="duplicateElem()">복제</button>
-      <button class="apply-btn" style="background:var(--danger)" onclick="deleteElem()">삭제</button>
-    </div>
-    <button class="apply-btn ghost" style="margin-top:8px" onclick="editSelectedElem()">고급 스타일/곡률 설정...</button>
-  </div>`;
-    }
-
-    function saveBackDebounced() {
-      clearTimeout(saveDebounce);
-      saveDebounce = setTimeout(saveBack, 200);
-    }
-    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
-    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
-    function rewriteOverlay() { if (selectedEl) showOverlay(selectedEl); }
-    function updatePanelFromElem() { if (activeTab === 'element') renderPanel(); }
-
-    function renderSlidePanel(body) {
-      if (!slides[cur]) return;
-      const s = slides[cur];
-      body.innerHTML = `
-  <div class="psection">
-    <h4>슬라이드 설정</h4>
-    <div class="pfield"><label>제목</label>
-      <input type="text" id="slide-title" value="${s.title || ''}">
-    </div>
-    <button class="apply-btn" onclick="applyTitle()">저장</button>
-    <div class="pfield" style="margin-top:14px"><label>배경색</label>
-      <div class="color-row">
-        <input type="color" id="bg-c" value="${rgb2hex(getDoc()?.body.style.backgroundColor) || '#ffffff'}">
-        <input type="text" id="bg-ct" value="${rgb2hex(getDoc()?.body.style.backgroundColor) || '#ffffff'}">
-      </div>
-    </div>
-    <button class="apply-btn" onclick="applyBg()">배경 적용</button>
-  </div>
-  <div class="psection">
-    <button class="apply-btn ghost" onclick="addBlankSlide()">슬라이드 추가</button>
-    <button class="apply-btn ghost" onclick="duplicateSlide()">슬라이드 복제</button>
-    <button class="apply-btn" style="background:var(--danger)" onclick="deleteSlide()">슬라이드 삭제</button>
-  </div>`;
-      syncColorPicker('bg-c', 'bg-ct');
-    }
-
-    function applyBg() {
-      const doc = getDoc();
-      if (!doc) return;
-      const color = document.getElementById('bg-c').value;
-      doc.body.style.backgroundColor = color;
       saveBack();
-      pushHistory();
-      toast('배경색 적용됨', 'ok');
-    }
-    function applyTitle() {
-      const val = document.getElementById('slide-title').value;
-      if (slides[cur]) slides[cur].title = val;
-      renderStrip();
-      pushHistory();
-      toast('제목 저장됨');
-    }
+      presIdx = cur;
+      const overlay = document.getElementById('pres-mode');
+      overlay.classList.add('active');
+      document.documentElement.requestFullscreen().catch(() => { });
+      loadPresSlide();
 
-    function renderAlignPanel(body) {
-      body.innerHTML = `
-  <div class="psection">
-    <h4>가로 정렬</h4>
-    <div class="align-grid">
-      <button class="align-btn" onclick="alignElem('left')">왼쪽</button>
-      <button class="align-btn" onclick="alignElem('center')">가운데</button>
-      <button class="align-btn" onclick="alignElem('right')">오른쪽</button>
-    </div>
-  </div>
-  <div class="psection">
-    <h4>세로 정렬</h4>
-    <div class="align-grid">
-      <button class="align-btn" onclick="alignElem('top')">위</button>
-      <button class="align-btn" onclick="alignElem('middle')">가운데</button>
-      <button class="align-btn" onclick="alignElem('bottom')">아래</button>
-    </div>
-  </div>
-  <div class="psection">
-    <h4>레이어 순서</h4>
-    <div class="align-grid" style="grid-template-columns: repeat(2, 1fr);">
-      <button class="align-btn" onclick="moveLayer('front')">맨 앞으로</button>
-      <button class="align-btn" onclick="moveLayer('forward')">앞으로</button>
-      <button class="align-btn" onclick="moveLayer('backward')">뒤로</button>
-      <button class="align-btn" onclick="moveLayer('back')">맨 뒤로</button>
-    </div>
-  </div>
-  <div class="psection">
-    <h4>특수</h4>
-    <div class="align-grid">
-      <button class="align-btn" onclick="alignElem('hcenter')" style="grid-column: span 2">정중앙 배치</button>
-      <button class="align-btn" onclick="alignElem('fill')">슬라이드 채움</button>
-    </div>
-  </div>`;
+      const onKey = (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ') presNext();
+        if (e.key === 'ArrowLeft') presPrev();
+        if (e.key === 'Escape') stopPresentation();
+      };
+      window.addEventListener('keydown', onKey);
+      overlay.dataset.onKey = onKey;
     }
 
-
-    // ═══════════════════════════════════════════
-    // EXPORT — PPTX
-    // ═══════════════════════════════════════════
-    function captureSlide(html, format = 'image/jpeg') {
-      return new Promise((resolve, reject) => {
-        const iframe = document.createElement('iframe');
-        iframe.style.cssText = `position:fixed;left:-9999px;top:0;width:${slideW}px;height:${slideH}px;border:none;pointer-events:none;`;
-        iframe.sandbox = 'allow-scripts allow-same-origin allow-popups';
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-          const doc = iframe.contentDocument;
-          const win = iframe.contentWindow;
-
-          const doCapture = () => {
-            try {
-              html2canvas(doc.body, {
-                width: slideW, height: slideH, scale: 2,
-                useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false
-              }).then(canvas => {
-                const dataUrl = canvas.toDataURL(format, 0.95);
-                resolve({
-                  data: dataUrl,
-                  width: canvas.width,
-                  height: canvas.height
-                });
-                document.body.removeChild(iframe);
-              }).catch(e => {
-                console.warn('html2canvas error:', e);
-                document.body.removeChild(iframe);
-                reject(e);
-              });
-            } catch (e) {
-              document.body.removeChild(iframe);
-              reject(e);
-            }
-          };
-
-          if (doc.fonts && doc.fonts.ready) {
-            doc.fonts.ready.then(() => {
-              setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1000);
-            }).catch(() => {
-              setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1500);
-            });
-          } else {
-            setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1500);
-          }
-        };
-        const blob = new Blob([html], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        iframe.src = url;
-      });
+    function stopPresentation() {
+      const overlay = document.getElementById('pres-mode');
+      overlay.classList.remove('active');
+      if (document.fullscreenElement) document.exitFullscreen();
+      const onKey = overlay.dataset.onKey;
+      if (onKey) window.removeEventListener('keydown', onKey);
     }
 
-    async function exportPPTX() {
-      if (!slides.length) return;
-      const btn = document.getElementById('btn-pptx');
-      btn.disabled = true; btn.textContent = '변환 중...';
-      setProgress(0.05);
-      try {
-        const pptx = new PptxGenJS();
-        pptx.layout = (slideH === 720) ? 'LAYOUT_16x9' : 'LAYOUT_4x3';
-        for (let i = 0; i < slides.length; i++) {
-          setProgress(0.05 + (i / slides.length) * 0.88);
-          const result = await captureSlide(slides[i].html);
-          const slide = pptx.addSlide();
-          slide.addImage({ data: result.data, x: 0, y: 0, w: '100%', h: '100%' });
-        }
-        setProgress(0.95);
-        await pptx.writeFile({ fileName: '발표자료.pptx' });
-        setProgress(1);
-        toast('PPTX 저장 완료 🎉', 'ok');
-      } catch (e) {
-        console.error(e);
-        toast('PPTX 실패: ' + e.message, 'err');
-      } finally {
-        btn.disabled = false; btn.textContent = '⬇ PPTX 저장'; setTimeout(() => setProgress(0), 700);
-      }
+    function loadPresSlide() {
+      const frame = document.getElementById('pres-frame');
+      const s = slides[presIdx];
+      frame.srcdoc = s.html;
+      document.getElementById('pres-num').textContent = `${presIdx + 1} / ${slides.length}`;
     }
 
-    async function exportPNG() {
-      if (!slides.length) return;
-      const btn = document.getElementById('btn-png');
-      btn.disabled = true; btn.textContent = '저장 중...';
-      try {
-        const result = await captureSlide(slides[cur].html, 'image/png');
-        const a = document.createElement('a');
-        a.href = result.data;
-        a.download = `slide_${cur + 1}.png`;
-        a.click();
-        toast('PNG 저장 완료!', 'ok');
-      } catch (e) { toast('PNG 실패: ' + e.message, 'err'); }
-      finally { btn.disabled = false; btn.textContent = '🖼️ PNG 저장'; }
-    }
+    function presNext() { if (presIdx < slides.length - 1) { presIdx++; loadPresSlide(); } }
+    function presPrev() { if (presIdx > 0) { presIdx--; loadPresSlide(); } }
 
-    async function exportPDF() {
-      if (!slides.length) return;
-      const btn = document.getElementById('btn-pdf');
-      btn.disabled = true; btn.textContent = 'PDF 생성 중...';
-      setProgress(0.05);
-      try {
-        const results = [];
-        for (let i = 0; i < slides.length; i++) {
-          setProgress(0.05 + (i / slides.length) * 0.85);
-          results.push(await captureSlide(slides[i].html));
-        }
-        setProgress(0.92);
-        const pdfBytes = buildPDF(results);
-        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = '발표자료.pdf'; a.click();
-        URL.revokeObjectURL(url);
-        setProgress(1);
-        toast('PDF 저장 완료 🎉', 'ok');
-      } catch (e) { toast('PDF 실패: ' + e.message, 'err'); console.error(e); }
-      finally { btn.disabled = false; btn.textContent = '📄 PDF 저장'; setTimeout(() => setProgress(0), 700); }
-    }
+    document.getElementById('pres-frame').onclick = presNext;
 
-    function buildPDF(results) {
-      const W = slideW * 0.75, H = slideH * 0.75;
-      const encoder = new TextEncoder();
-      const parts = [];
-      let pos = 0;
-      function write(s) {
-        const bytes = typeof s === 'string' ? encoder.encode(s) : s; parts.push(bytes); pos += bytes.length; return bytes.length;
-      }
-      function writeLn(s) { return write(s + '\n'); }
-      writeLn('%PDF-1.4');
-      write('%\xFF\xFF\xFF\xFF\n');
-      const n = results.length;
-      const baseObj = 3;
-      const jpegBufs = results.map(r => {
-        const b64 = r.data.replace(/^data:image\/\w+;base64,/, ''), bin = atob(b64);
-        const buf = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf;
-      });
-      const objects = [{
-        id: 1, content: '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
-      }];
-      const pageIds = Array.from({ length: n }, (_, i) => baseObj + i * 3);
-      objects.push({
-        id: 2, content: `2 0 obj\n<< /Type /Pages /Kids [${pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${n} >>\nendobj\n`
-      });
-      for (let i = 0; i < n; i++) {
-        const pageId = baseObj + i * 3, contentId = pageId + 1, imgId = pageId + 2;
-        const res = results[i];
-        const stream = `q ${W} 0 0 ${H} 0 0 cm /Im${i} Do Q`;
-        const streamBytes = encoder.encode(stream);
-        objects.push({
-          id: pageId,
-          content: `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im${i} ${imgId} 0 R>> >> /Contents ${contentId} 0 R >>\nendobj\n`
-        });
-        objects.push({ id: contentId, bytes: streamBytes, isStream: true });
-        objects.push({
-          id: imgId, bytes: jpegBufs[i], isImage: true,
-          header: `${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${res.width} /Height ${res.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBufs[i].length} >>\n`
-        });
-      }
-
-      const xrefOffsets = [];
-      for (const obj of objects) {
-        xrefOffsets.push({ id: obj.id, offset: pos });
-        if (obj.isImage) {
-          write(obj.header); write('stream\n'); write(obj.bytes); write('\nendstream\nendobj\n');
-        }
-        else if (obj.isStream) {
-          write(`${obj.id} 0 obj\n<< /Length ${obj.bytes.length}>>\nstream\n`);
-          write(obj.bytes); write('\nendstream\nendobj\n');
-        }
-        else write(obj.content);
-      }
-      const xrefPos = pos;
-      writeLn('xref'); writeLn(`0 ${objects.length + 1}`); writeLn('0000000000 65535 f ');
-      xrefOffsets.sort((a, b) => a.id - b.id).forEach(({ offset }) => writeLn(offset.toString().padStart(10, '0') + ' 00000 n '));
-      writeLn('trailer'); writeLn(`<< /Size ${objects.length + 1} /Root 1 0 R>>`); writeLn('startxref');
-      writeLn(xrefPos + ''); write('%%EOF');
-
-      const result = new Uint8Array(parts.reduce((s, b) => s + b.length, 0));
-      let off = 0;
-      for (const p of parts) {
-        result.set(p, off);
-        off += p.length;
-      }
-      return result;
-    }
-
-    // ═══════════════════════════════════════════
-    // HELPERS
-    // ═══════════════════════════════════════════
     function getDoc() {
-      const fr = document.getElementById('slide-frame'); return fr ? fr.contentDocument
-        : null;
+      const fr = document.getElementById('slide-frame'); return fr ? fr.contentDocument : null;
     }
     function saveBack() {
       if (!slides[cur]) return;
       const doc = getDoc();
       if (!doc || !doc.body) return;
-      // Guard: if the iframe body has no content at all, don't overwrite with empty
       if (!doc.body.innerHTML.trim()) return;
 
       const clone = doc.documentElement.cloneNode(true);
@@ -3384,17 +2559,12 @@ ${headHTML}</head><body>${inner}</body></html>`;
         el.removeAttribute('data-editable');
         el.classList.remove('selected');
       });
-      // Remove only the UI decoration styles, keep the base layout ones
       const editStyle = clone.querySelector('#__edit_style__'); if (editStyle) editStyle.remove();
       slides[cur].html = "<!DOCTYPE html>" + clone.outerHTML;
       clearTimeout(stripDebounce);
       stripDebounce = setTimeout(renderStrip, 400);
       scheduleAutoSave();
-
-      // If code tab is active but not focused, refresh it to reflect changes
-      if (activeTab === 'code' && document.activeElement !== document.getElementById('curr-code')) {
-        renderPanel();
-      }
+      saveCurrentToProject();
     }
     function rgb2hex(rgb) {
       if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
@@ -3427,9 +2597,292 @@ ${headHTML}</head><body>${inner}</body></html>`;
         }
     }
     function esc(s) {
-      if (!s) return ""; return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"
-      ).replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      if (!s) return ""; return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
+    function rgb2hex(rgb) {
+      if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
+      const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (!m) return rgb;
+      return "#" + ("0" + parseInt(m[1], 10).toString(16)).slice(-2) + ("0" + parseInt(m[2], 10).toString(16)).slice(-2) + ("0" + parseInt(m[3], 10).toString(16)).slice(-2);
+    }
+
+    function changeAspectRatio(val) {
+      slideW = 1280;
+      slideH = (val === '16/9') ? 720 : 960;
+      const host = document.getElementById('slide-host');
+      if (host) { host.style.width = slideW + 'px'; host.style.height = slideH + 'px'; }
+      slides.forEach(s => { s.html = s.html.replace(/width:\d+px;height:\d+px/g, `width:${slideW}px;height:${slideH}px`); });
+      renderAll(); fitToWindow(); pushHistory(); toast(`비율 변경됨: ${val}`, 'ok');
+    }
+
+    function toggleShapeMenu() {
+      const m = document.getElementById('shape-menu');
+      m.style.display = m.style.display === 'block' ? 'none' : 'block';
+      event.stopPropagation();
+    }
+
+    function insertItem(type) {
+      const doc = getDoc(); if (!doc) return;
+      const el = doc.createElement('div');
+      el.setAttribute('data-editable', '');
+      el.style.position = 'absolute'; el.style.left = '100px'; el.style.top = '100px';
+
+      if (type === 'text') { el.innerHTML = '새 텍스트'; el.style.fontSize = '32px'; el.style.padding = '10px'; }
+      else if (type === 'box') { el.style.width = '200px'; el.style.height = '150px'; el.style.backgroundColor = '#7c6cff'; }
+      else if (type === 'rbox') { el.style.width = '200px'; el.style.height = '150px'; el.style.backgroundColor = '#42d9a0'; el.style.borderRadius = '20px'; }
+      else if (type === 'circle') { el.style.width = '150px'; el.style.height = '150px'; el.style.backgroundColor = '#ffa94d'; el.style.borderRadius = '50%'; }
+      else if (type === 'tri') { el.style.width = '150px'; el.style.height = '150px'; el.style.backgroundColor = '#ff5370'; el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)'; }
+      else if (type === 'line') { el.style.width = '200px'; el.style.height = '4px'; el.style.backgroundColor = '#6b6b85'; }
+      else if (type === 'image') {
+        const inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = ev => {
+          const f = ev.target.files[0]; if (!f) return;
+          const r = new FileReader(); r.onload = e => {
+            const img = doc.createElement('img'); img.src = e.target.result; img.style.width = '100%';
+            el.innerHTML = ''; el.appendChild(img); el.style.width = '300px';
+            saveBack(); pushHistory(); renderLayers();
+          }; r.readAsDataURL(f);
+        };
+        inp.click();
+      }
+
+      doc.body.appendChild(el);
+      selectedEls = [el]; selectedEl = el; injectEditMode(); showOverlay(el); saveBack(); pushHistory(); renderLayers(); toast('추가됨');
+    }
+
+    // ═══════════════════════════════════════════
+    // LAYER PANEL
+    // ═══════════════════════════════════════════
+    function renderLayers() {
+      const doc = getDoc(); if (!doc) return;
+      const list = document.getElementById('layer-list');
+      if (!list) return;
+      list.innerHTML = '';
+      const els = Array.from(doc.querySelectorAll('[data-editable]')).reverse();
+      els.forEach(el => {
+        const eid = el.dataset.eid;
+        const isActive = selectedEls.includes(el);
+        const item = document.createElement('div');
+        item.className = 'layer-item' + (isActive ? ' active' : '');
+        item.dataset.eid = eid;
+        item.innerHTML = `
+          <div class="layer-name">${el.dataset.name || el.innerText.trim().substring(0, 15) || '요소'}</div>
+          <div class="layer-ops">
+            <button class="layer-op" onclick="event.stopPropagation(); deleteElemByEid('${eid}')">✕</button>
+          </div>
+        `;
+        item.onclick = (e) => {
+          if (e.shiftKey) { if (!selectedEls.includes(el)) selectedEls.push(el); }
+          else { selectedEls = [el]; }
+          selectedEl = el; showOverlay(el); renderPanel(); renderLayers();
+        };
+        list.appendChild(item);
+      });
+    }
+    function deleteElemByEid(eid) {
+      const el = getDoc()?.querySelector(`[data-eid="${eid}"]`);
+      if (el) { el.remove(); selectedEls = selectedEls.filter(x => x !== el); if (selectedEl === el) selectedEl = null; hideOverlay(); saveBack(); renderLayers(); }
+    }
+
+    // ═══════════════════════════════════════════
+    // SELECTION OVERLAY & RESIZE
+    // ═══════════════════════════════════════════
+    function getElemRectInSlide(el) {
+      const frame = document.getElementById('slide-frame');
+      const iframeBody = frame.contentDocument && frame.contentDocument.body;
+      let left = 0, top = 0, cur = el;
+      while (cur && cur !== iframeBody) {
+        left += cur.offsetLeft - (cur.offsetParent ? cur.offsetParent.scrollLeft || 0 : 0);
+        top += cur.offsetTop - (cur.offsetParent ? cur.offsetParent.scrollTop || 0 : 0);
+        cur = cur.offsetParent;
+      }
+      return { left, top, width: el.offsetWidth, height: el.offsetHeight };
+    }
+
+    function showOverlay(el) {
+      if (!el) { hideOverlay(); return; }
+      const overlay = document.getElementById('sel-overlay');
+      const rect = getElemRectInSlide(el);
+      overlay.style.display = 'block';
+      overlay.style.left = rect.left + 'px'; overlay.style.top = rect.top + 'px';
+      overlay.style.width = rect.width + 'px'; overlay.style.height = rect.height + 'px';
+      overlay.querySelectorAll('.sel-handle').forEach(h => {
+        h.onmousedown = (e) => startResize(e, h.dataset.h, el);
+      });
+    }
+    function hideOverlay() { document.getElementById('sel-overlay').style.display = 'none'; }
+
+    function startResize(e, handle, el) {
+      e.preventDefault(); e.stopPropagation();
+      isResizing = true;
+      const startX = e.clientX, startY = e.clientY;
+      const startW = el.offsetWidth, startH = el.offsetHeight;
+      const startL = parseFloat(el.style.left) || 0, startT = parseFloat(el.style.top) || 0;
+
+      const onMove = (ev) => {
+        if (!isResizing) return;
+        const dx = (ev.clientX - startX) / canvasZoom, dy = (ev.clientY - startY) / canvasZoom;
+        if (handle.includes('r')) el.style.width = Math.max(10, startW + dx) + 'px';
+        if (handle.includes('b')) el.style.height = Math.max(10, startH + dy) + 'px';
+        if (handle.includes('l')) { el.style.width = Math.max(10, startW - dx) + 'px'; el.style.left = (startL + dx) + 'px'; }
+        if (handle.includes('t')) { el.style.height = Math.max(10, startH - dy) + 'px'; el.style.top = (startT + dy) + 'px'; }
+        showOverlay(el);
+      };
+      const onUp = () => { isResizing = false; window.removeEventListener('mousemove', onMove); window.removeEventListener('mouseup', onUp); saveBack(); pushHistory(); };
+      window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+    }
+
+    // ═══════════════════════════════════════════
+    // ELEMENT OPS
+    // ═══════════════════════════════════════════
+    function duplicateElem() {
+      if (!selectedEl) return;
+      const clone = selectedEl.cloneNode(true);
+      clone.style.left = (parseFloat(selectedEl.style.left) || 0) + 20 + 'px';
+      clone.style.top = (parseFloat(selectedEl.style.top) || 0) + 20 + 'px';
+      selectedEl.parentNode.insertBefore(clone, selectedEl.nextSibling);
+      selectedEl = clone; selectedEls = [clone]; saveBack(); pushHistory(); injectEditMode(); showOverlay(clone);
+    }
+    function deleteElem() {
+      if (!selectedEls.length) return;
+      selectedEls.forEach(el => el.remove());
+      selectedEls = []; selectedEl = null; hideOverlay(); saveBack(); pushHistory(); renderLayers();
+    }
+    function copyElem() { if (selectedEls.length) { copiedElsHtml = selectedEls.map(el => el.outerHTML); toast('복사됨'); } }
+    function pasteElem() {
+      if (!copiedElsHtml.length) return;
+      const doc = getDoc();
+      copiedElsHtml.forEach(html => {
+        const div = doc.createElement('div'); div.innerHTML = html;
+        const el = div.firstChild;
+        el.style.left = (parseFloat(el.style.left) || 0) + 20 + 'px';
+        el.style.top = (parseFloat(el.style.top) || 0) + 20 + 'px';
+        doc.body.appendChild(el);
+      });
+      saveBack(); pushHistory(); injectEditMode(); renderLayers(); toast('붙여넣기됨');
+    }
+
+    function alignElem(type) {
+      if (!selectedEls.length) return;
+      selectedEls.forEach(el => {
+        const w = el.offsetWidth, h = el.offsetHeight;
+        if (type === 'left') el.style.left = '0';
+        if (type === 'center') el.style.left = (slideW - w) / 2 + 'px';
+        if (type === 'right') el.style.left = (slideW - w) + 'px';
+        if (type === 'top') el.style.top = '0';
+        if (type === 'middle') el.style.top = (slideH - h) / 2 + 'px';
+        if (type === 'bottom') el.style.top = (slideH - h) + 'px';
+      });
+      saveBack(); pushHistory(); showOverlay(selectedEl);
+    }
+    function moveLayer(dir) {
+      if (!selectedEl) return;
+      const p = selectedEl.parentNode;
+      if (dir === 'front') p.appendChild(selectedEl);
+      if (dir === 'back') p.insertBefore(selectedEl, p.firstChild);
+      saveBack(); pushHistory(); renderLayers(); showOverlay(selectedEl);
+    }
+
+    // ═══════════════════════════════════════════
+    // PANEL
+    // ═══════════════════════════════════════════
+    function setTab(t) { activeTab = t; renderPanel(); }
+    function renderPanel() {
+      const body = document.getElementById('panel-body');
+      if (!slides.length) { body.innerHTML = ''; return; }
+      document.querySelectorAll('.ptab').forEach((el, i) => el.classList.toggle('active', ['code', 'element', 'slide', 'align'][i] === activeTab));
+      if (activeTab === 'code') renderCodePanel(body);
+      else if (activeTab === 'element') renderElementPanel(body);
+      else if (activeTab === 'slide') renderSlidePanel(body);
+      else renderAlignPanel(body);
+    }
+    function renderCodePanel(body) {
+      body.innerHTML = `<div class="psection"><h4>HTML 코드</h4><textarea class="code-editor" style="min-height:400px" oninput="liveUpdateHTML(this.value)">${esc(slides[cur].html)}</textarea></div>`;
+    }
+    function liveUpdateHTML(val) { slides[cur].html = val; document.getElementById('slide-frame').srcdoc = val; pushHistoryDebounced(); }
+    function renderElementPanel(body) {
+      if (!selectedEl) { body.innerHTML = '<div class="empty">요소를 선택하세요</div>'; return; }
+      body.innerHTML = `
+        <div class="psection">
+          <h4>속성 편집</h4>
+          <div class="pfield"><label>내용</label><textarea oninput="applyProp('innerHTML', this.value)">${selectedEl.innerHTML}</textarea></div>
+          <div class="row2">
+            <div class="pfield"><label>X</label><input type="number" value="${parseInt(selectedEl.style.left) || 0}" oninput="applyStyle('left', this.value+'px')"></div>
+            <div class="pfield"><label>Y</label><input type="number" value="${parseInt(selectedEl.style.top) || 0}" oninput="applyStyle('top', this.value+'px')"></div>
+          </div>
+          <div class="row2">
+            <div class="pfield"><label>W</label><input type="number" value="${parseInt(selectedEl.style.width) || 0}" oninput="applyStyle('width', this.value+'px')"></div>
+            <div class="pfield"><label>H</label><input type="number" value="${parseInt(selectedEl.style.height) || 0}" oninput="applyStyle('height', this.value+'px')"></div>
+          </div>
+          <div class="pfield"><label>배경색</label><input type="color" value="${rgb2hex(selectedEl.style.backgroundColor) || '#ffffff'}" oninput="applyStyle('backgroundColor', this.value)"></div>
+        </div>
+      `;
+    }
+    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
+    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
+    function rewriteOverlay() { if (selectedEl) showOverlay(selectedEl); }
+
+    function renderSlidePanel(body) {
+      const s = slides[cur];
+      body.innerHTML = `
+        <div class="psection">
+          <h4>슬라이드 설정</h4>
+          <div class="pfield"><label>제목</label><input type="text" value="${s.title}" oninput="slides[cur].title=this.value; renderStrip()"></div>
+        </div>
+      `;
+    }
+    function renderAlignPanel(body) {
+      body.innerHTML = `
+        <div class="psection">
+          <h4>정렬</h4>
+          <div class="align-grid">
+            <button class="align-btn" onclick="alignElem('left')">왼쪽</button><button class="align-btn" onclick="alignElem('center')">가운데</button><button class="align-btn" onclick="alignElem('right')">오른쪽</button>
+            <button class="align-btn" onclick="alignElem('top')">위</button><button class="align-btn" onclick="alignElem('middle')">가운데</button><button class="align-btn" onclick="alignElem('bottom')">아래</button>
+          </div>
+          <h4 style="margin-top:20px">순서</h4>
+          <div class="align-grid">
+            <button class="align-btn" onclick="moveLayer('front')">맨앞</button><button class="align-btn" onclick="moveLayer('back')">맨뒤</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // ═══════════════════════════════════════════
+    // EXPORTS
+    // ═══════════════════════════════════════════
+    function captureSlide(html) {
+      return new Promise(resolve => {
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText = `position:fixed;left:-9999px;width:${slideW}px;height:${slideH}px;`;
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          html2canvas(iframe.contentDocument.body, { width: slideW, height: slideH, scale: 2, useCORS: true }).then(canvas => {
+            const data = canvas.toDataURL('image/jpeg', 0.9);
+            document.body.removeChild(iframe);
+            resolve({ data, width: canvas.width, height: canvas.height });
+          });
+        };
+        const blob = new Blob([html], { type: 'text/html' });
+        iframe.src = URL.createObjectURL(blob);
+      });
+    }
+    async function exportPPTX() {
+      if (!slides.length) return;
+      const pptx = new PptxGenJS();
+      for (let i = 0; i < slides.length; i++) {
+        const res = await captureSlide(slides[i].html);
+        pptx.addSlide().addImage({ data: res.data, x: 0, y: 0, w: '100%', h: '100%' });
+      }
+      pptx.writeFile({ fileName: 'presentation.pptx' });
+      toast('PPTX 저장 완료');
+    }
+    async function exportPNG() {
+      const res = await captureSlide(slides[cur].html);
+      const a = document.createElement('a'); a.href = res.data; a.download = 'slide.jpg'; a.click();
+    }
+    async function exportPDF() { toast('PDF 기능 복구 중...', 'err'); }
+
+    // (End of restored functions)
 
     // global mouseup to ensure drag clean up
     window.addEventListener('mouseup', () => {
@@ -3475,15 +2928,14 @@ ${headHTML}</head><body>${inner}</body></html>`;
     }
 
     // init
-    const host = document.getElementById('slide-host');
-    if (host) {
-      host.style.width = slideW + 'px';
-      host.style.height = slideH + 'px';
+    loadProjects();
+    if (projects.length === 0) {
+      showDashboard();
+    } else {
+      openProject(projects[0].id);
     }
-    renderAll();
-    checkAutoSaveOnLoad(); // Check for auto-saved data on startup
-    // Don't call pushHistory() here — slides is empty at init,
-    // first real history entry is created after user imports slides.
+
+    const host = document.getElementById('slide-host');
   </script>
 </body>
 
