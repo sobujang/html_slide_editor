@@ -1918,6 +1918,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
           e.preventDefault();
         }
         const isMulti = e.shiftKey;
+        const isExclude = e.ctrlKey || e.metaKey;
 
         if (e.target === doc.body || e.target === doc.documentElement) {
           if (!isMulti && !isExclude) {
