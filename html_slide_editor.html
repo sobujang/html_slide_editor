@@ -1,0 +1,3255 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>슬라이드 편집기</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js"></script>
+  <style>
+    :root {
+      --bg: #0d0d12;
+      --surface: #15151e;
+      --surface2: #1e1e2a;
+      --surface3: #252533;
+      --border: #2a2a3a;
+      --accent: #7c6cff;
+      --accent2: #a78bfa;
+      --text: #e2e2f0;
+      --muted: #6b6b85;
+      --danger: #ff5370;
+      --success: #42d9a0;
+      --warn: #ffa94d;
+      --panel: 300px;
+      --strip: 172px;
+      --topbar: 50px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0
+    }
+
+    body {
+      font-family: 'Apple SD Gothic Neo', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      font-size: 13px
+    }
+
+    /* TOPBAR */
+    .topbar {
+      height: var(--topbar);
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 14px;
+      flex-shrink: 0;
+      z-index: 50
+    }
+
+    .logo {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent2);
+      white-space: nowrap
+    }
+
+    .tb-sep {
+      width: 1px;
+      height: 18px;
+      background: var(--border)
+    }
+
+    .tb-group {
+      display: flex;
+      gap: 4px;
+      align-items: center
+    }
+
+    .tb-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 5px 11px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .tb-btn:hover {
+      background: var(--surface3);
+      border-color: var(--accent)
+    }
+
+    .tb-btn.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff
+    }
+
+    .tb-btn.primary:hover {
+      background: #8d7fff
+    }
+
+    .tb-btn.danger {
+      border-color: var(--danger);
+      color: var(--danger)
+    }
+
+    .tb-btn.danger:hover {
+      background: rgba(255, 83, 112, .1)
+    }
+
+    .tb-btn:disabled {
+      opacity: .4;
+      cursor: not-allowed;
+      pointer-events: none
+    }
+
+    .slide-badge {
+      background: var(--surface3);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3px 10px;
+      font-size: 11px;
+      color: var(--muted)
+    }
+
+    /* MAIN */
+    .main {
+      flex: 1;
+      display: flex;
+      overflow: hidden
+    }
+
+    /* STRIP */
+    .strip {
+      width: var(--strip);
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .strip-header {
+      padding: 10px 10px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0
+    }
+
+    .strip-header span {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted)
+    }
+
+    .strip-add-btn {
+      width: 22px;
+      height: 22px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--accent2);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      transition: all .15s
+    }
+
+    .strip-add-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff
+    }
+
+    .strip-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px
+    }
+
+    .thumb-wrap {
+      position: relative;
+      flex-shrink: 0
+    }
+
+    .thumb {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: white;
+      border: 2px solid transparent;
+      border-radius: 6px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color .15s;
+      user-select: none
+    }
+
+    .thumb:hover {
+      border-color: var(--accent2)
+    }
+
+    .thumb.active {
+      border-color: var(--accent)
+    }
+
+    .thumb.drag-over {
+      border-color: var(--success) !important;
+      border-style: dashed
+    }
+
+    .thumb iframe {
+      width: var(--thumb-w, 960px);
+      height: var(--thumb-h, 540px);
+      transform: scale(var(--thumb-scale, 0.25));
+      transform-origin: top left;
+      pointer-events: none;
+      border: none;
+      background: white
+    }
+
+    .thumb-num {
+      position: absolute;
+      bottom: 3px;
+      right: 5px;
+      font-size: 9px;
+      color: rgba(255, 255, 255, .6);
+      background: rgba(0, 0, 0, .45);
+      border-radius: 3px;
+      padding: 1px 4px
+    }
+
+    .thumb-del {
+      position: absolute;
+      top: 3px;
+      right: 3px;
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      background: var(--danger);
+      color: #fff;
+      font-size: 10px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      line-height: 1
+    }
+
+    .thumb-wrap:hover .thumb-del {
+      display: flex
+    }
+
+    .thumb-drag {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      font-size: 9px;
+      color: rgba(255, 255, 255, .3);
+      cursor: grab;
+      padding: 2px
+    }
+
+    /* CANVAS AREA */
+    .canvas-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .canvas-toolbar {
+      height: 40px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 12px;
+      flex-shrink: 0
+    }
+
+    .ct-btn {
+      padding: 4px 9px;
+      border-radius: 5px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .15s;
+      white-space: nowrap
+    }
+
+    .ct-btn:hover {
+      background: var(--surface2);
+      color: var(--text)
+    }
+
+    .ct-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff
+    }
+
+    .ct-sep {
+      width: 1px;
+      height: 16px;
+      background: var(--border);
+      margin: 0 4px
+    }
+
+    .canvas-scroll {
+      flex: 1;
+      padding: 0;
+      overflow: auto;
+      background: #12121a;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .canvas-scaler {
+      display: inline-block;
+      transition: transform 0.2s ease;
+      transform-origin: center center;
+    }
+
+    .slide-host {
+      background: white;
+      box-shadow: 0 15px 50px rgba(0, 0, 0, 0.5);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Collapse states */
+    #strip-sidebar.collapsed {
+      width: 40px !important;
+      min-width: 40px !important;
+      overflow: hidden;
+    }
+
+    #strip-sidebar.collapsed .strip-header span,
+    #strip-sidebar.collapsed .strip-list {
+      display: none;
+    }
+
+    #right-panel.collapsed {
+      width: 40px !important;
+      min-width: 40px !important;
+      overflow: hidden;
+    }
+
+    #right-panel.collapsed .panel-tabs,
+    #right-panel.collapsed #panel-body {
+      display: none;
+    }
+
+    .collapse-btn {
+      position: absolute;
+      top: 10px;
+      z-index: 100;
+      width: 24px;
+      height: 24px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text);
+      font-size: 12px;
+    }
+
+    .collapse-btn:hover {
+      background: var(--surface3);
+    }
+
+    .zoom-hud {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(30, 30, 46, 0.8);
+      backdrop-filter: blur(8px);
+      padding: 6px 14px;
+      border-radius: 30px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid var(--border);
+      color: white;
+      z-index: 1000;
+    }
+
+    .zoom-hud button {
+      background: none;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 16px;
+      width: 24px;
+    }
+
+    .zoom-hud span {
+      font-size: 12px;
+      min-width: 40px;
+      text-align: center;
+      font-weight: 600;
+    }
+
+    #slide-frame {
+      width: 100%;
+      height: 100%;
+      border: none;
+      display: block
+    }
+
+    /* SELECTION OVERLAY */
+    .sel-overlay {
+      position: absolute;
+      pointer-events: none;
+      border: 2px solid var(--accent);
+      border-radius: 2px;
+      z-index: 999
+    }
+
+    .sel-overlay .sel-handle {
+      position: absolute;
+      width: 8px;
+      height: 8px;
+      background: var(--accent);
+      border-radius: 2px;
+      border: 1px solid #fff
+    }
+
+    .sel-overlay .sel-handle.tl {
+      top: -4px;
+      left: -4px;
+      cursor: nw-resize;
+      pointer-events: all
+    }
+
+    .sel-overlay .sel-handle.tr {
+      top: -4px;
+      right: -4px;
+      cursor: ne-resize;
+      pointer-events: all
+    }
+
+    .sel-overlay .sel-handle.bl {
+      bottom: -4px;
+      left: -4px;
+      cursor: sw-resize;
+      pointer-events: all
+    }
+
+    .sel-overlay .sel-handle.br {
+      bottom: -4px;
+      right: -4px;
+      cursor: se-resize;
+      pointer-events: all
+    }
+
+    .sel-toolbar {
+      position: absolute;
+      top: -36px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      display: flex;
+      gap: 0;
+      overflow: hidden;
+      white-space: nowrap;
+      pointer-events: all;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, .5)
+    }
+
+    .sel-action {
+      padding: 5px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--text);
+      border: none;
+      background: transparent;
+      transition: all .15s
+    }
+
+    .sel-action:hover {
+      background: var(--surface2)
+    }
+
+    .sel-action.red {
+      color: var(--danger)
+    }
+
+    .sel-action.red:hover {
+      background: rgba(255, 83, 112, .15)
+    }
+
+    /* CONTEXT MENU */
+    .ctx-menu {
+      position: fixed;
+      display: none;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+      z-index: 2000;
+      padding: 5px 0;
+      min-width: 140px;
+    }
+
+    .ctx-item {
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: background 0.1s;
+    }
+
+    .ctx-item:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .ctx-item span {
+      opacity: 0.5;
+      font-size: 10px;
+    }
+
+    .ctx-item.red {
+      color: var(--danger);
+    }
+
+    .ctx-item.red:hover {
+      background: rgba(255, 83, 112, .15);
+      color: var(--danger);
+    }
+
+    .ctx-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+
+    /* RIGHT PANEL */
+    .right-panel {
+      width: var(--panel);
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden
+    }
+
+    .panel-tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0
+    }
+
+    .ptab {
+      flex: 1;
+      padding: 11px 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all .15s
+    }
+
+    .ptab.active {
+      color: var(--accent2);
+      border-bottom-color: var(--accent)
+    }
+
+    .panel-body {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px
+    }
+
+    /* PANEL COMPONENTS */
+    .psection {
+      margin-bottom: 18px
+    }
+
+    .psection h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .8px;
+      color: var(--muted);
+      margin-bottom: 8px
+    }
+
+    .pfield {
+      margin-bottom: 10px
+    }
+
+    .pfield label {
+      display: block;
+    }
+
+    .pfield input[type=text],
+    .pfield textarea,
+    .pfield select,
+    .pfield input[type=number] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 6px;
+      padding: 7px 9px;
+      font-size: 12px;
+      outline: none;
+      font-family: inherit;
+      transition: border-color .15s
+    }
+
+    .pfield input:focus,
+    .pfield textarea:focus {
+      border-color: var(--accent)
+    }
+
+    .pfield textarea {
+      resize: vertical;
+      min-height: 70px
+    }
+
+    .pfield input[type=number] {
+      width: 80px
+    }
+
+    .color-row {
+      display: flex;
+      gap: 6px;
+      align-items: center
+    }
+
+    .color-row input[type=color] {
+      width: 34px;
+      height: 34px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+      background: var(--surface2);
+      cursor: pointer;
+      flex-shrink: 0
+    }
+
+    .color-row .pfield-txt {
+      flex: 1;
+      margin: 0
+    }
+
+    .row2 {
+      display: flex;
+      gap: 8px
+    }
+
+    .row2 .pfield {
+      flex: 1;
+      margin-bottom: 0
+    }
+
+    .apply-btn {
+      width: 100%;
+      padding: 9px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 4px;
+      transition: all .15s
+    }
+
+    .apply-btn:hover {
+      background: #8d7fff
+    }
+
+    .apply-btn.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text)
+    }
+
+    .apply-btn.ghost:hover {
+      background: var(--surface2)
+    }
+
+    /* CODE EDITOR */
+    .code-editor {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: #a8e6cf;
+      border-radius: 7px;
+      padding: 10px;
+      font-size: 11px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      resize: vertical;
+      min-height: 200px;
+      line-height: 1.6;
+      tab-size: 2
+    }
+
+    .code-editor:focus {
+      border-color: var(--accent)
+    }
+
+    /* ALIGN GRID */
+    .align-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px
+    }
+
+    .align-btn {
+      padding: 7px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface2);
+      color: var(--text);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all .15s;
+      text-align: center
+    }
+
+    .align-btn:hover {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff
+    }
+
+    /* MODAL */
+    .modal-bg {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, .8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+      backdrop-filter: blur(4px)
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 28px;
+      min-width: 500px;
+      max-width: 600px
+    }
+
+    .modal h2 {
+      font-size: 16px;
+      margin-bottom: 6px
+    }
+
+    .modal p {
+      font-size: 12px;
+      color: var(--muted);
+      margin-bottom: 20px
+    }
+
+    .modal-tabs {
+      display: flex;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 16px
+    }
+
+    .modal-tab {
+      flex: 1;
+      padding: 9px;
+      text-align: center;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      transition: all .15s
+    }
+
+    .modal-tab.active {
+      background: var(--accent);
+      color: #fff
+    }
+
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 10px;
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all .2s;
+      margin-bottom: 14px
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dg {
+      border-color: var(--accent);
+      background: rgba(124, 108, 255, .06)
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 32px;
+      margin-bottom: 8px
+    }
+
+    .drop-zone p {
+      font-size: 12px;
+      color: var(--muted)
+    }
+
+    .drop-zone strong {
+      color: var(--accent2)
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px
+    }
+
+    .modal-note {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--surface2);
+      border-radius: 6px;
+      padding: 8px 10px;
+      margin-bottom: 12px;
+      line-height: 1.6
+    }
+
+    /* TOAST */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--text);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, .5);
+      transform: translateY(10px);
+      opacity: 0;
+      transition: all .2s;
+      z-index: 400;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      max-width: 320px
+    }
+
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1
+    }
+
+    .toast.ok {
+      border-color: var(--success)
+    }
+
+    .toast.err {
+      border-color: var(--danger)
+    }
+
+    /* PROGRESS */
+    .prog {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--accent);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform .3s;
+      z-index: 500
+    }
+
+    /* SCROLLBAR */
+    ::-webkit-scrollbar {
+      width: 4px;
+      height: 4px
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent
+    }
+
+    /* EMPTY */
+    .empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 100%;
+      color: var(--muted);
+      text-align: center
+    }
+
+    .empty .ei {
+      font-size: 44px;
+      opacity: .3
+    }
+
+    .empty h3 {
+      color: var(--text);
+      font-size: 15px
+    }
+
+    .empty p {
+      font-size: 12px;
+      line-height: 1.7;
+      max-width: 260px
+    }
+
+    /* RIGHT SIDEBAR - LAYER SECTION (MOVED) */
+    .layer-sidebar {
+      border-top: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-height: 200px;
+    }
+
+    .layer-header {
+      background: var(--surface);
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+    }
+
+    .layer-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px;
+    }
+
+    .layer-item {
+      display: flex;
+      align-items: center;
+      padding: 5px 8px 5px 0;
+      border-radius: 6px;
+      margin-bottom: 2px;
+      cursor: pointer;
+      font-size: 12px;
+      color: var(--text);
+      transition: background 0.15s;
+      gap: 4px;
+      border: 1px solid transparent;
+      user-select: none;
+    }
+
+    .layer-item:hover {
+      background: var(--surface3);
+      border-color: var(--border);
+    }
+
+    .layer-item.active {
+      background: var(--surface3);
+      border-color: var(--accent);
+      color: var(--accent2);
+    }
+
+    .layer-item.drag-over {
+      border-top: 2px solid var(--accent) !important;
+    }
+
+    .layer-item.dragging {
+      opacity: 0.4;
+    }
+
+    .layer-drag {
+      cursor: grab;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 0 3px;
+      flex-shrink: 0;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .layer-item:hover .layer-drag {
+      opacity: 1;
+    }
+
+    .layer-item:hover {
+      background: var(--surface2);
+    }
+
+    .layer-item.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .layer-icon {
+      font-size: 14px;
+      min-width: 20px;
+      text-align: center;
+      opacity: 0.7;
+    }
+
+    .layer-name {
+      flex: 1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .layer-ops {
+      display: flex;
+      gap: 2px;
+      opacity: 0.3;
+      transition: opacity 0.2s;
+    }
+
+    .layer-item:hover .layer-ops {
+      opacity: 1;
+    }
+
+    .layer-op {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .layer-op:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .layer-op.active {
+      color: var(--accent2);
+      background: rgba(124, 108, 255, 0.15);
+    }
+
+    .layer-item.hidden {
+      opacity: 0.4;
+    }
+
+    .layer-item.locked .layer-name {
+      color: var(--muted);
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="logo">슬라이드 편집기</div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="tb-btn" onclick="openImportModal()">📂 HTML 불러오기</button>
+      <button class="tb-btn" onclick="loadProjectJSON()">📥 JSON 불러오기</button>
+      <button class="tb-btn" onclick="saveProjectJSON()">📤 JSON 저장</button>
+      <button class="tb-btn" onclick="addBlankSlide()">+ 슬라이드 추가</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="tb-btn" id="btn-undo" onclick="undo()" title="실행 취소 (Ctrl+Z)" disabled>↩️</button>
+      <button class="tb-btn" id="btn-redo" onclick="redo()" title="다시 실행 (Ctrl+Y)" disabled>↪️</button>
+    </div>
+    <div class="tb-sep"></div>
+    <div class="tb-group">
+      <button class="tb-btn primary" id="btn-manualsave" onclick="manualSave()" title="수동 저장 (Ctrl+S)">💾 저장</button>
+    </div>
+    <div class="tb-sep"></div>
+    <span class="slide-badge" id="slide-badge">0 / 0장</span>
+    <!-- Auto-save status indicator -->
+    <div id="autosave-status"
+      style="display:none;align-items:center;gap:6px;margin-left:10px;font-size:11px;color:var(--muted);transition:all 0.3s">
+      <span id="autosave-dot"
+        style="width:7px;height:7px;border-radius:50%;background:var(--muted);display:inline-block"></span>
+      <span id="autosave-label">자동저장</span>
+    </div>
+    <!-- Recover banner (hidden by default) -->
+    <div id="recover-bar"
+      style="display:none;align-items:center;gap:8px;margin-left:12px;background:rgba(255,200,60,0.15);border:1px solid rgba(255,200,60,0.4);border-radius:8px;padding:4px 12px;font-size:12px;color:#ffc83c">
+      <span>⚠️ 저장된 작업이 있습니다</span>
+      <button class="tb-btn" style="padding:2px 8px;font-size:11px" onclick="recoverAutoSave()">복구하기</button>
+      <button class="tb-btn" style="padding:2px 8px;font-size:11px;color:var(--muted)"
+        onclick="dismissRecover()">무시</button>
+    </div>
+    <div style="flex:1"></div>
+    <div class="tb-group">
+      <select id="ratio-select" class="tb-btn" onchange="changeAspectRatio(this.value)"
+        style="background:var(--surface3);outline:none;border-color:var(--border)">
+        <option value="16/9">16:9 (1280×720)</option>
+        <option value="4/3">4:3 (1280×960)</option>
+      </select>
+      <button class="tb-btn" id="btn-png" onclick="exportPNG()" disabled>🖼️ PNG 저장</button>
+      <button class="tb-btn" id="btn-pdf" onclick="exportPDF()" disabled>📄 PDF 저장</button>
+      <button class="tb-btn primary" id="btn-pptx" onclick="exportPPTX()" disabled>⬇ PPTX 저장</button>
+    </div>
+  </div>
+
+
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- LEFT STRIP -->
+    <div class="strip" id="strip-sidebar">
+      <button class="collapse-btn" style="right:-12px" onclick="toggleSidebar('strip-sidebar')">◀</button>
+      <div class="strip-header">
+        <span>슬라이드</span>
+        <button class="strip-add-btn" onclick="addBlankSlide()" title="슬라이드 추가">+</button>
+      </div>
+      <div class="strip-list" id="strip-list"></div>
+    </div>
+
+    <!-- CANVAS -->
+    <div class="canvas-area">
+      <div class="canvas-toolbar" id="canvas-toolbar">
+        <button class="ct-btn" onclick="moveSlide(-1)">◀ 앞으로</button>
+        <button class="ct-btn" onclick="moveSlide(1)">뒤로 ▶</button>
+        <button class="ct-btn" onclick="duplicateSlide()">복제</button>
+        <button class="ct-btn" style="color:var(--danger)" onclick="deleteSlide()">슬라이드 삭제</button>
+        <div class="ct-sep"></div>
+        <button class="ct-btn" onclick="insertItem('text')">➕ 텍스트 추가</button>
+        <button class="ct-btn" onclick="insertItem('image')">🖼️ 이미지 추가</button>
+        <div class="tb-group" style="position:relative">
+          <button class="ct-btn" onclick="toggleShapeMenu()">🟦 도형 추가 ▾</button>
+          <div id="shape-menu" class="ctx-menu" style="top:30px;left:0;">
+            <div class="ctx-item" onclick="insertItem('box')"><span>🟦</span> 사각형</div>
+            <div class="ctx-item" onclick="insertItem('rbox')"><span>▢</span> 둥근 사각형</div>
+            <div class="ctx-item" onclick="insertItem('circle')"><span>⭕</span> 원형</div>
+            <div class="ctx-item" onclick="insertItem('tri')"><span>▲</span> 삼각형</div>
+            <div class="ctx-item" onclick="insertItem('line')"><span>➖</span> 직선</div>
+          </div>
+        </div>
+        <div class="ct-sep"></div>
+        <span style="font-size:11px;color:var(--muted)" id="zoom-info">1280×720</span>
+      </div>
+
+      <div class="canvas-scroll" id="canvas-scroll">
+        <div class="canvas-scaler" id="canvas-scaler">
+          <div class="slide-host" id="slide-host">
+            <iframe id="slide-frame" sandbox="allow-scripts allow-same-origin"></iframe>
+            <div class="sel-overlay" id="sel-overlay" style="display:none">
+              <div class="sel-toolbar">
+                <button class="sel-action" onclick="editSelectedElem()">✏️ 편집</button>
+                <button class="sel-action" onclick="duplicateElem()">복제</button>
+                <button class="sel-action" onclick="detachElem()" title="부모에서 분리하여 body 직하위로 이동">⎋ 분리</button>
+                <button class="sel-action red" onclick="deleteElem()">삭제</button>
+              </div>
+              <div class="sel-handle tl" data-h="tl"></div>
+              <div class="sel-handle tr" data-h="tr"></div>
+              <div class="sel-handle bl" data-h="bl"></div>
+              <div class="sel-handle br" data-h="br"></div>
+              <div class="sel-handle ml" data-h="ml" style="top:50%;left:-3px;margin-top:-4px;cursor:w-resize"></div>
+              <div class="sel-handle mr" data-h="mr" style="top:50%;right:-3px;margin-top:-4px;cursor:e-resize"></div>
+              <div class="sel-handle mt" data-h="mt" style="left:50%;top:-3px;margin-left:-4px;cursor:n-resize"></div>
+              <div class="sel-handle mb" data-h="mb" style="left:50%;bottom:-3px;margin-left:-4px;cursor:s-resize">
+              </div>
+              <div id="lasso" class="lasso"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="zoom-hud">
+          <button onclick="changeZoom(-0.1)">-</button>
+          <span id="zoom-hud-text">100%</span>
+          <button onclick="changeZoom(0.1)">+</button>
+          <div style="width:1px;height:14px;background:rgba(255,255,255,0.2)"></div>
+          <button onclick="fitToWindow()" title="창에 맞춤">⛶</button>
+        </div>
+
+        <div class="empty" id="empty-state" style="position:absolute; display:none">
+          <div class="ei">🗂️</div>
+          <h3>HTML 슬라이드를 불러오세요</h3>
+          <p>파일 업로드, 코드 붙여넣기 또는<br>새 슬라이드를 추가하세요.</p>
+          <button class="tb-btn primary" style="margin-top:6px" onclick="openImportModal()">📂 HTML 불러오기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="right-panel" id="right-panel">
+      <button class="collapse-btn" style="left:-12px" onclick="toggleSidebar('right-panel')">▶</button>
+      <div class="panel" style="display:flex; flex-direction:column; height:100%">
+        <div class="panel-tabs">
+          <div class="ptab" onclick="setTab('code')">코드</div>
+          <div class="ptab active" onclick="setTab('element')">요소</div>
+          <div class="ptab" onclick="setTab('slide')">슬라이드</div>
+          <div class="ptab" onclick="setTab('align')">정렬</div>
+        </div>
+        <div class="panel-body" id="panel-body" style="flex:1; overflow-y:auto"></div>
+        <div class="layer-sidebar">
+          <div class="layer-header">레이어</div>
+          <div class="layer-list" id="layer-list"></div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- SELECTION OVERLAY (portaled into slide-host) -->
+  </div>
+
+  <div class="ctx-menu" id="ctx-menu">
+    <div class="ctx-item" onclick="duplicateElem()">복제 <span>Ctrl+D</span></div>
+    <div class="ctx-item" onclick="copyElem()">복사 <span>Ctrl+C</span></div>
+    <div class="ctx-item" onclick="pasteElem()">붙여넣기 <span>Ctrl+V</span></div>
+    <div class="ctx-sep"></div>
+    <div class="ctx-item" onclick="editSelectedElem()">스타일 편집</div>
+    <div class="ctx-item red" onclick="deleteElem()">삭제 <span>Del</span></div>
+  </div>
+
+
+  <!-- IMPORT MODAL -->
+  <div class="modal-bg" id="import-modal" style="display:none">
+    <div class="modal">
+      <h2>HTML 슬라이드 불러오기</h2>
+      <p>슬라이드별 HTML 파일 또는 코드를 붙여넣으세요.</p>
+      <div class="modal-tabs">
+        <button class="modal-tab active" onclick="setImportTab('file')">📁 파일 업로드</button>
+        <button class="modal-tab" onclick="setImportTab('code')">📋 코드 붙여넣기</button>
+        <button class="modal-tab" onclick="setImportTab('multi')">📂 여러 파일</button>
+      </div>
+      <div id="itab-file">
+        <div class="drop-zone" id="dz" onclick="document.getElementById('fi').click()"
+          ondragover="event.preventDefault();this.classList.add('dg')" ondragleave="this.classList.remove('dg')"
+          ondrop="handleFileDrop(event)">
+          <div class="dz-icon">📄</div>
+          <p><strong>클릭하거나 파일을 끌어다 놓으세요</strong></p>
+          <p style="margin-top:4px;font-size:11px">.html / .htm 파일</p>
+        </div>
+        <input type="file" id="fi" accept=".html,.htm" style="display:none" onchange="handleFileSelect(event)">
+      </div>
+      <div id="itab-code" style="display:none">
+        <div class="modal-note">💡 &lt;section&gt; 또는 .slide 클래스로 슬라이드를 구분하면 자동 분리됩니다. 구분이 없으면 전체를 1장으로 처리합니다.</div>
+        <textarea class="code-editor" id="code-paste-area" style="min-height:180px"
+          placeholder="HTML 코드를 붙여넣으세요..."></textarea>
+      </div>
+      <div id="itab-multi" style="display:none">
+        <div class="modal-note">💡 파일 또는 폴더를 선택하세요. 파일 이름 순서대로 슬라이드가 추가됩니다.</div>
+        <div class="drop-zone" onclick="document.getElementById('fi-multi').click()">
+          <div class="dz-icon">📂</div>
+          <p><strong>여러 파일 또는 폴더 선택</strong></p>
+          <p id="multi-status" style="margin-top:4px;font-size:11px;color:var(--success)"></p>
+        </div>
+        <input type="file" id="fi-multi" accept=".html,.htm" multiple webkitdirectory directory style="display:none"
+          onchange="handleMultiFile(event)">
+      </div>
+      <div class="modal-actions">
+        <button class="tb-btn" onclick="closeImportModal()">취소</button>
+        <button class="tb-btn primary" onclick="doImport()">불러오기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ELEMENT EDIT MODAL -->
+  <div class="modal-bg" id="elem-modal" style="display:none">
+    <div class="modal" style="min-width:540px">
+      <h2>요소 편집</h2>
+      <p>선택한 요소의 스타일과 내용을 수정합니다.</p>
+      <div class="pfield">
+        <label>내용 (HTML 허용)</label>
+        <textarea class="code-editor" id="em-content" style="min-height:80px"></textarea>
+      </div>
+      <div class="row2">
+        <div class="pfield">
+          <label>글자 크기 (px)</label>
+          <input type="number" id="em-fsize" min="6" max="300">
+        </div>
+        <div class="pfield">
+          <label>글자 두께</label>
+          <select id="em-fweight"
+            style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 9px;width:100%;font-size:12px;outline:none">
+            <option value="">기본</option>
+            <option value="400">보통 (400)</option>
+            <option value="600">세미볼드 (600)</option>
+            <option value="700">볼드 (700)</option>
+          </select>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="pfield">
+          <label>글자 색상</label>
+          <div class="color-row">
+            <input type="color" id="em-fcolor">
+            <input type="text" class="pfield-txt" id="em-fcolor-txt" placeholder="#000000">
+          </div>
+        </div>
+        <div class="pfield">
+          <label>배경 색상</label>
+          <div class="color-row">
+            <input type="color" id="em-bgcolor">
+            <input type="text" class="pfield-txt" id="em-bgcolor-txt" placeholder="#ffffff">
+          </div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="pfield">
+          <label>너비 (px)</label>
+          <input type="number" id="em-width" placeholder="auto">
+        </div>
+        <div class="pfield">
+          <label>높이 (px)</label>
+          <input type="number" id="em-height" placeholder="auto">
+        </div>
+      </div>
+      <div class="pfield">
+        <label>기타 CSS (인라인)</label>
+        <input type="text" id="em-extra-css" placeholder="예: border-radius: 20px; opacity: 0.8;">
+      </div>
+      <div class="pfield" id="pfield-radius" style="display:none">
+        <label>모서리 둥글게 (px)</label>
+        <input type="number" id="em-radius" placeholder="8">
+      </div>
+      <div class="modal-actions">
+        <button class="tb-btn" onclick="closeElemModal()">취소</button>
+        <button class="tb-btn primary" onclick="applyElemEdit()">적용</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <div class="prog" id="prog"></div>
+
+  <script>
+    // ═══════════════════════════════════════════
+    // STATE
+    // ═══════════════════════════════════════════
+    let slides = [];
+    let cur = 0;
+    let activeTab = 'element';
+    let importTab = 'file';
+    let editMode = true;          // Always active
+    let selectedEls = [];         // Array of DOM elements
+    let selectedEl = null;        // Legacy single selection (backwards compatibility)
+    let multiFiles = [];
+    let snapDist = 10;
+    let isDraggingEl = false;
+    let dragStartX, dragStartY, dragOffsets = []; // {el, l, t}
+    let copiedElsHtml = [];
+    let slideW = 1280, slideH = 720;
+    let canvasZoom = 1.0;
+    let undoStack = [];
+    let redoStack = [];
+    let copiedElemHtml = null;
+    const collapsedState = new Set();
+    let loadedCode = '';
+    let isResizing = false, resizeHandle = '';
+    let resizeStartX = 0, resizeStartY = 0, resizeStartW = 0, resizeStartH = 0, resizeStartL = 0, resizeStartT = 0;
+    let arrowDebounce = null, stripDebounce = null, codeDebounce = null, autoSaveDebounce = null;
+
+    function pushHistory() {
+      // Don't save empty state — no slides = nothing to undo to
+      if (!slides.length) return;
+      const state = JSON.stringify({ slides, cur });
+      if (undoStack.length > 0 && undoStack[undoStack.length - 1] === state) return;
+      undoStack.push(state);
+      if (undoStack.length > 50) undoStack.shift();
+      redoStack = [];
+      updateUndoBtns();
+      scheduleAutoSave();
+    }
+    function undo() {
+      if (undoStack.length <= 1) return;
+      // Peek at what we'd restore — if it's empty slides, don't do it
+      const prevRaw = JSON.parse(undoStack[undoStack.length - 2]);
+      const prevSlides = Array.isArray(prevRaw) ? prevRaw : prevRaw.slides;
+      if (!prevSlides || prevSlides.length === 0) return;
+      redoStack.push(undoStack.pop());
+      const raw = JSON.parse(undoStack[undoStack.length - 1]);
+      if (Array.isArray(raw)) {
+        slides = raw;
+        cur = Math.min(cur, slides.length - 1);
+      } else {
+        slides = raw.slides;
+        cur = (typeof raw.cur === 'number') ? raw.cur : 0;
+      }
+      if (cur < 0) cur = 0;
+      if (cur >= slides.length) cur = slides.length - 1;
+      selectedEls = []; selectedEl = null; hideOverlay();
+      renderAll();
+    }
+    function redo() {
+      if (!redoStack.length) return;
+      const stateStr = redoStack.pop();
+      undoStack.push(stateStr);
+      const raw = JSON.parse(stateStr);
+      if (Array.isArray(raw)) {
+        slides = raw;
+        cur = Math.min(cur, slides.length - 1);
+      } else {
+        slides = raw.slides;
+        cur = (typeof raw.cur === 'number') ? raw.cur : 0;
+      }
+      if (cur < 0) cur = 0;
+      selectedEls = []; selectedEl = null; hideOverlay();
+      renderAll();
+    }
+    function updateUndoBtns() {
+      const u = document.getElementById('btn-undo');
+      const r = document.getElementById('btn-redo');
+      if (u) u.disabled = undoStack.length <= 1;
+      if (r) r.disabled = redoStack.length === 0;
+    }
+
+    // ═══════════════════════════════════════════
+    // AUTO-SAVE (localStorage)
+    // ═══════════════════════════════════════════
+    const AUTOSAVE_KEY = 'slide_editor_autosave';
+    const AUTOSAVE_META_KEY = 'slide_editor_autosave_meta';
+    let autoSaveTimer = null;
+
+    function scheduleAutoSave() {
+      clearTimeout(autoSaveTimer);
+      setAutoSaveStatus('saving');
+      autoSaveTimer = setTimeout(doAutoSave, 2000);
+    }
+
+    function doAutoSave() {
+      if (!slides.length) return;
+      try {
+        const payload = JSON.stringify({ slides, cur, slideW, slideH });
+        localStorage.setItem(AUTOSAVE_KEY, payload);
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0') + ':' + now.getSeconds().toString().padStart(2, '0');
+        localStorage.setItem(AUTOSAVE_META_KEY, JSON.stringify({ time: timeStr, count: slides.length }));
+        setAutoSaveStatus('saved', timeStr);
+      } catch (e) {
+        setAutoSaveStatus('error');
+        console.warn('Auto-save failed:', e);
+      }
+    }
+
+    function setAutoSaveStatus(state, time) {
+      const statusEl = document.getElementById('autosave-status');
+      const dot = document.getElementById('autosave-dot');
+      const label = document.getElementById('autosave-label');
+      if (!statusEl || !dot || !label) return;
+      statusEl.style.display = 'flex';
+      if (state === 'saving') {
+        dot.style.background = '#ffc83c';
+        dot.style.boxShadow = '0 0 4px #ffc83c';
+        label.textContent = '저장 중...';
+      } else if (state === 'saved') {
+        dot.style.background = '#4ade80';
+        dot.style.boxShadow = '0 0 4px #4ade80';
+        label.textContent = `자동저장 완료 ${time}`;
+      } else if (state === 'error') {
+        dot.style.background = '#f87171';
+        dot.style.boxShadow = '0 0 4px #f87171';
+        label.textContent = '저장 실패';
+      }
+    }
+
+    function checkAutoSaveOnLoad() {
+      try {
+        const raw = localStorage.getItem(AUTOSAVE_KEY);
+        const meta = localStorage.getItem(AUTOSAVE_META_KEY);
+        if (!raw) return;
+        const m = meta ? JSON.parse(meta) : {};
+        const bar = document.getElementById('recover-bar');
+        if (bar) {
+          const span = bar.querySelector('span');
+          if (span && m.time) span.textContent = `⚠️ 자동저장 데이터 발견 (${m.time}, ${m.count || '?'}장)`;
+          bar.style.display = 'flex';
+        }
+      } catch (e) { }
+    }
+
+    function recoverAutoSave() {
+      try {
+        const raw = localStorage.getItem(AUTOSAVE_KEY);
+        if (!raw) { toast('복구할 데이터가 없습니다', 'err'); return; }
+        const data = JSON.parse(raw);
+        slides = data.slides || [];
+        cur = data.cur || 0;
+        if (data.slideW) slideW = data.slideW;
+        if (data.slideH) slideH = data.slideH;
+        dismissRecover();
+        renderAll();
+        pushHistory();
+        toast(`✅ ${slides.length}장 슬라이드 복구 완료`, 'ok');
+      } catch (e) {
+        toast('복구 실패: ' + e.message, 'err');
+      }
+    }
+
+    function dismissRecover() {
+      const bar = document.getElementById('recover-bar');
+      if (bar) bar.style.display = 'none';
+    }
+
+    function manualSave() {
+      if (!slides.length) { toast('저장할 슬라이드가 없습니다', 'err'); return; }
+      const btn = document.getElementById('btn-manualsave');
+      if (btn) { btn.textContent = '⏳ 저장 중...'; btn.disabled = true; }
+      // Force save immediately (bypasses debounce)
+      clearTimeout(autoSaveTimer);
+      try {
+        const payload = JSON.stringify({ slides, cur, slideW, slideH });
+        localStorage.setItem(AUTOSAVE_KEY, payload);
+        const now = new Date();
+        const timeStr = now.getHours().toString().padStart(2, '0') + ':'
+          + now.getMinutes().toString().padStart(2, '0') + ':'
+          + now.getSeconds().toString().padStart(2, '0');
+        localStorage.setItem(AUTOSAVE_META_KEY, JSON.stringify({ time: timeStr, count: slides.length }));
+        setAutoSaveStatus('saved', timeStr);
+        toast(`💾 저장 완료 (${timeStr})`, 'ok');
+      } catch (e) {
+        setAutoSaveStatus('error');
+        toast('저장 실패: ' + e.message, 'err');
+      } finally {
+        setTimeout(() => {
+          if (btn) { btn.textContent = '💾 저장'; btn.disabled = false; }
+        }, 800);
+      }
+    }
+
+    function handleShortcuts(e) {
+      if (e.ctrlKey && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+      if (e.ctrlKey && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+      if (e.ctrlKey && e.key.toLowerCase() === 's') { e.preventDefault(); manualSave(); }
+
+      // If typing in input/textarea, don't move or delete elements
+      if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') return;
+      // Also check iframe active element if possible, but simpler to just check tagName
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.contentEditable === 'true') return;
+
+      if (e.key === 'Delete') { if (selectedEl) deleteElem(); }
+      if (e.ctrlKey && e.key.toLowerCase() === 'c') { if (selectedEl) copyElem(); }
+      if (e.ctrlKey && e.key.toLowerCase() === 'v') { pasteElem(); }
+      if (e.ctrlKey && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateElem(); }
+
+      // Arrow keys movement
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key) && selectedEl) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        let l = parseFloat(selectedEl.style.left) || 0;
+        let t = parseFloat(selectedEl.style.top) || 0;
+        if (e.key === 'ArrowUp') t -= step;
+        if (e.key === 'ArrowDown') t += step;
+        if (e.key === 'ArrowLeft') l -= step;
+        if (e.key === 'ArrowRight') l += step;
+        selectedEl.style.left = l + 'px';
+        selectedEl.style.top = t + 'px';
+        showOverlay(selectedEl);
+        saveBack();
+        clearTimeout(arrowDebounce);
+        arrowDebounce = setTimeout(pushHistory, 600);
+      }
+    }
+    window.addEventListener('keydown', handleShortcuts);
+
+    // Global click for menus
+    window.addEventListener('click', () => {
+      document.getElementById('ctx-menu').style.display = 'none';
+      document.getElementById('shape-menu').style.display = 'none';
+    });
+
+
+    // ═══════════════════════════════════════════
+    // IMPORT
+    // ═══════════════════════════════════════════
+    function openImportModal() {
+      document.getElementById('import-modal').style.display = 'flex';
+    }
+    function closeImportModal() {
+      document.getElementById('import-modal').style.display = 'none';
+      loadedCode = '';
+      multiFiles = [];
+      document.getElementById('multi-status').textContent = '';
+      document.getElementById('dz').querySelector('p').innerHTML = '<strong>클릭하거나 파일을 끌어다 놓으세요</strong>';
+    }
+    function setImportTab(t) {
+      importTab = t;
+      ['file', 'code', 'multi'].forEach(k => {
+        document.getElementById('itab-' + k).style.display = k === t ? '' : 'none';
+      });
+      document.querySelectorAll('.modal-tab').forEach((el, i) => {
+        el.classList.toggle('active', ['file', 'code', 'multi'][i] === t);
+      });
+    }
+    function handleFileDrop(e) {
+      e.preventDefault();
+      document.getElementById('dz').classList.remove('dg');
+      const f = e.dataTransfer.files[0];
+      if (f) loadHTMLFile(f);
+    }
+    function handleFileSelect(e) {
+      const f = e.target.files[0];
+      if (f) loadHTMLFile(f);
+    }
+    function loadHTMLFile(f) {
+      const r = new FileReader();
+      r.onload = ev => {
+        loadedCode = ev.target.result;
+        document.getElementById('dz').querySelector('p').innerHTML =
+          `<strong style="color:var(--success)">✓ ${f.name}</strong>`;
+      };
+      r.readAsText(f);
+    }
+    function handleMultiFile(e) {
+      const files = [...e.target.files].filter(f => f.name.endsWith('.html') || f.name.endsWith('.htm')).sort((a, b) => a.webkitRelativePath.localeCompare(b.webkitRelativePath) || a.name.localeCompare(b.name));
+      multiFiles = [];
+      let loaded = 0;
+      if (!files.length) return;
+      files.forEach(f => {
+        const r = new FileReader();
+        r.onload = ev => {
+          multiFiles.push({ name: f.name, path: f.webkitRelativePath, html: ev.target.result });
+          loaded++;
+          if (loaded === files.length) {
+            multiFiles.sort((a, b) => a.path.localeCompare(b.path) || a.name.localeCompare(b.name));
+            document.getElementById('multi-status').textContent = `${files.length}개 파일 로드됨`;
+          }
+        };
+        r.readAsText(f);
+      });
+    }
+    function doImport() {
+      if (importTab === 'multi') {
+        if (!multiFiles.length) { toast('파일을 선택하세요', 'err'); return; }
+        const newSlides = multiFiles.map((f, i) => ({ html: f.html, title: `슬라이드 ${i + 1} (${f.name})` }));
+        slides = [...slides, ...newSlides];
+        cur = slides.length - newSlides.length;
+        closeImportModal();
+        renderAll();
+        pushHistory();
+        toast(`${newSlides.length}장 추가됨`, 'ok');
+        return;
+      }
+      let html = importTab === 'file' ? loadedCode : document.getElementById('code-paste-area').value.trim();
+      if (!html) { toast('HTML을 입력하거나 파일을 선택하세요', 'err'); return; }
+      parseHTML(html);
+      closeImportModal();
+    }
+
+    function parseHTML(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const headHTML = doc.head ? doc.head.innerHTML : '';
+      let arr = [];
+
+      const revSections = doc.querySelectorAll('.reveal .slides > section, .slides > section');
+      if (revSections.length > 1) {
+        revSections.forEach(s => arr.push(wrapSlide(s.outerHTML, headHTML)));
+      }
+      if (!arr.length) {
+        const divs = doc.querySelectorAll('.slide,[class*="slide-page"],[class*="page"]');
+        if (divs.length > 1) divs.forEach(s => arr.push(wrapSlide(s.outerHTML, headHTML)));
+      }
+      if (!arr.length) arr.push(wrapSlide(doc.body.innerHTML, headHTML));
+
+      const startIdx = slides.length;
+      slides = [...slides, ...arr.map((h, i) => ({ html: h, title: `슬라이드 ${startIdx + i + 1}` }))];
+      cur = startIdx;
+      renderAll();
+      pushHistory();
+      toast(`${arr.length}장 슬라이드 로드 완료`, 'ok');
+    }
+
+    function wrapSlide(inner, headHTML) {
+      return `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style id="__edit_style__">
+  *{box-sizing:border-box}
+  body{margin:0;padding:0;width:${slideW}px;height:${slideH}px;overflow:hidden;position:relative;background:white;font-family:sans-serif}
+  [data-editable]{transition:outline 0.1s}
+  [data-editable]:hover{outline:2px dashed var(--accent, #7c6cff)!important;cursor:pointer!important}
+  [data-editable].selected{outline:2px solid var(--accent, #7c6cff)!important}
+</style>
+${headHTML}</head><body>${inner}</body></html>`;
+    }
+
+    function changeAspectRatio(val) {
+      slideW = 1280;
+      slideH = (val === '16/9') ? 720 : 960;
+      document.getElementById('zoom-info').textContent = `${slideW}×${slideH}`;
+      const host = document.getElementById('slide-host');
+      host.style.width = slideW + 'px';
+      host.style.height = slideH + 'px';
+
+      slides.forEach(s => {
+        s.html = s.html.replace(/width:\d+px;height:\d+px/g, `width:${slideW}px;height:${slideH}px`);
+      });
+      renderAll();
+      setTimeout(fitToWindow, 50); // refit after change
+      pushHistory();
+      toast(`비율 변경됨: ${val}`, 'ok');
+    }
+
+    function renderAll() {
+      renderStrip();
+      loadSlide(cur);
+      updateBadge();
+      updateBtns();
+      renderPanel();
+      updateUndoBtns();
+      if (!hasAutoFitted && slides.length > 0) {
+        setTimeout(fitToWindow, 100);
+        hasAutoFitted = true;
+      }
+    }
+    let hasAutoFitted = false;
+    function updateBadge() {
+      document.getElementById('slide-badge').textContent = slides.length ? `${cur + 1} / ${slides.length}장` : '0 / 0장';
+    }
+    function updateBtns() {
+      const has = slides.length > 0;
+      document.getElementById('btn-pptx').disabled = !has;
+      document.getElementById('btn-pdf').disabled = !has;
+      document.getElementById('btn-png').disabled = !has;
+      const empty = document.getElementById('empty-state');
+      if (empty) empty.style.display = has ? 'none' : 'flex';
+      document.getElementById('slide-frame').style.display = has ? '' : 'none';
+    }
+    function renderStrip() {
+      const list = document.getElementById('strip-list');
+      list.innerHTML = '';
+      slides.forEach((s, i) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'thumb-wrap';
+        wrap.draggable = true;
+        wrap.dataset.idx = i;
+        const ts = 160 / slideW;
+        wrap.innerHTML = `
+      <div class="thumb${i === cur ? ' active' : ''}" onclick="selectSlide(${i})" 
+           style="aspect-ratio:${slideW}/${slideH}; --thumb-w:${slideW}px; --thumb-h:${slideH}px; --thumb-scale:${ts}">
+        <span class="thumb-drag">⠿</span>
+        <iframe srcdoc="${esc(s.html)}" sandbox="allow-scripts allow-same-origin"></iframe>
+        <span class="thumb-num">${i + 1}</span>
+      </div>
+      <button class="thumb-del" onclick="deleteSlideAt(${i},event)" title="삭제">✕</button>`;
+
+        wrap.ondragstart = e => e.dataTransfer.setData('text/plain', i);
+        wrap.ondragover = e => { e.preventDefault(); wrap.querySelector('.thumb').classList.add('drag-over'); };
+        wrap.ondragleave = () => wrap.querySelector('.thumb').classList.remove('drag-over');
+        wrap.ondrop = e => {
+          e.preventDefault();
+          wrap.querySelector('.thumb').classList.remove('drag-over');
+          reorder(+e.dataTransfer.getData('text/plain'), i);
+        };
+        list.appendChild(wrap);
+      });
+    }
+    function selectSlide(i) {
+      cur = i;
+      selectedEls = [];
+      selectedEl = null;
+      hideOverlay();
+      renderStrip();
+      loadSlide(i);
+      updateBadge();
+      renderPanel();
+    }
+    function loadSlide(i) {
+      if (!slides[i]) return;
+      const frame = document.getElementById('slide-frame');
+      frame.onload = null; // Clear previous handler to prevent stale saves
+      frame.srcdoc = slides[i].html;
+      frame.onload = () => {
+        injectEditMode();
+        renderPanel();
+        hideOverlay();
+        renderLayers();
+      };
+    }
+
+    // ═══════════════════════════════════════════
+    // SLIDE OPS
+    // ═══════════════════════════════════════════
+    function addBlankSlide() {
+      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
+<style>body{margin:0;width:${slideW}px;height:${slideH}px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;position:relative}</style>
+</head><body><div style="text-align:center;color:#333">
+<h1 style="font-size:48px;margin-bottom:16px">새 슬라이드</h1>
+<p style="font-size:20px;color:#666">내용을 입력하세요</p>
+</div></body></html>`;
+      slides.splice(cur + 1, 0, { html, title: `슬라이드 ${slides.length + 1}` });
+      cur = cur + 1;
+      renderAll();
+      pushHistory();
+      toast('새 슬라이드 추가됨', 'ok');
+    }
+    function duplicateSlide() {
+      if (!slides.length) return;
+      const copy = { ...slides[cur], title: slides[cur].title + ' (복사)' };
+      slides.splice(cur + 1, 0, copy);
+      cur++;
+      renderAll();
+      pushHistory();
+    }
+
+    function deleteSlide() {
+      deleteSlideAt(cur, null);
+    }
+    function deleteSlideAt(i, e) {
+      if (e) e.stopPropagation();
+      if (slides.length <= 1) { toast('마지막 슬라이드는 삭제할 수 없습니다', 'err'); return; }
+      slides.splice(i, 1);
+      cur = Math.min(cur, slides.length - 1);
+      renderAll();
+      pushHistory();
+      toast('삭제됨');
+    }
+    function moveSlide(dir) {
+      const ni = cur + dir;
+      if (ni < 0 || ni >= slides.length) return;
+      [slides[cur], slides[ni]] = [slides[ni], slides[cur]];
+      cur = ni;
+      renderAll();
+    }
+    function reorder(from, to) {
+      if (from === to) return;
+      const [item] = slides.splice(from, 1);
+      slides.splice(to, 0, item);
+      cur = to;
+      renderAll();
+    }
+
+    // ═══════════════════════════════════════════
+    // EDIT MODE (element selection in iframe)
+    // ═══════════════════════════════════════════
+    function injectEditMode() {
+      const doc = getDoc();
+      if (!doc) return;
+
+      if (!doc.getElementById('__edit_style__')) {
+        const s = doc.createElement('style');
+        s.id = '__edit_style__';
+        s.textContent = '[data-editable]{transition:outline 0.1s}[data-editable]:hover{outline:2px dashed #7c6cff!important;cursor:pointer!important}[data-editable].selected{outline:2px solid #7c6cff!important}';
+        doc.head.appendChild(s);
+      }
+
+      const els = doc.querySelectorAll('body *');
+      els.forEach((el, i) => {
+        if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE') return;
+        el.setAttribute('data-editable', '');
+        if (!el.dataset.eid) el.dataset.eid = Math.random().toString(36).substr(2, 9);
+
+        // Inline edit
+        el.ondblclick = (e) => {
+          if (el.dataset.locked === 'true') return;
+          e.stopPropagation();
+          el.contentEditable = 'true';
+          el.focus();
+          el.onblur = () => {
+            el.contentEditable = 'false';
+            saveBack();
+            pushHistory();
+            renderLayers();
+          };
+        };
+      });
+
+      let lassoStart = null;
+      doc.onmousedown = (e) => {
+        const isMulti = e.shiftKey;
+        const isExclude = e.ctrlKey || e.metaKey;
+
+        if (e.target === doc.body || e.target === doc.documentElement) {
+          if (!isMulti && !isExclude) {
+            selectedEls = []; selectedEl = null; hideOverlay();
+            doc.querySelectorAll('[data-editable]').forEach(x => x.classList.remove('selected'));
+          }
+          // Start Lasso
+          lassoStart = { x: e.clientX, y: e.clientY };
+          const l = document.getElementById('lasso');
+          l.style.display = 'block'; l.style.width = '0'; l.style.height = '0';
+          l.style.left = e.clientX + 'px'; l.style.top = e.clientY + 'px';
+          return;
+        }
+
+        let target = e.target;
+        while (target && target !== doc.body && !target.hasAttribute('data-editable')) target = target.parentNode;
+
+        if (target && target !== doc.body) {
+          if (target.dataset.locked === 'true') return; // Skip locked
+          if (target.style.display === 'none' || target.style.visibility === 'hidden') return;
+
+          if (isExclude) {
+            selectedEls = selectedEls.filter(x => x !== target);
+            target.classList.remove('selected');
+          } else if (isMulti) {
+            if (!selectedEls.includes(target)) selectedEls.push(target);
+            target.classList.add('selected');
+          } else {
+            doc.querySelectorAll('[data-editable]').forEach(x => x.classList.remove('selected'));
+            selectedEls = [target];
+            target.classList.add('selected');
+          }
+
+          selectedEl = target;
+          showOverlay(selectedEl);
+          renderPanel();
+          renderLayers();
+
+          isDraggingEl = true;
+          dragStartX = e.clientX; dragStartY = e.clientY;
+          dragOffsets = selectedEls.map(el => {
+            const cs = doc.defaultView.getComputedStyle(el);
+            if (cs.position !== 'absolute') {
+              const rectBefore = el.getBoundingClientRect();
+              el.style.width = el.offsetWidth + 'px';
+              el.style.height = el.offsetHeight + 'px';
+              el.style.position = 'absolute';
+              el.style.left = '0px';
+              el.style.top = '0px';
+              const rectAt0 = el.getBoundingClientRect();
+              el.style.left = (rectBefore.left - rectAt0.left) + 'px';
+              el.style.top = (rectBefore.top - rectAt0.top) + 'px';
+            }
+            return { el, l: parseFloat(el.style.left) || 0, t: parseFloat(el.style.top) || 0 };
+          });
+        }
+      };
+
+      doc.onmousemove = (e) => {
+        if (lassoStart) {
+          const l = document.getElementById('lasso');
+          const nx = Math.min(e.clientX, lassoStart.x), ny = Math.min(e.clientY, lassoStart.y);
+          const nw = Math.abs(e.clientX - lassoStart.x), nh = Math.abs(e.clientY - lassoStart.y);
+          l.style.left = nx + 'px'; l.style.top = ny + 'px';
+          l.style.width = nw + 'px'; l.style.height = nh + 'px';
+
+          // Select intersecting
+          const lRect = { left: nx, top: ny, right: nx + nw, bottom: ny + nh };
+          doc.querySelectorAll('[data-editable]').forEach(el => {
+            const r = el.getBoundingClientRect();
+            const intersect = !(r.left > lRect.right || r.right < lRect.left || r.top > lRect.bottom || r.bottom < lRect.top);
+            if (intersect) {
+              if (!selectedEls.includes(el)) { selectedEls.push(el); el.classList.add('selected'); }
+            } else if (!e.shiftKey && !e.ctrlKey) {
+              selectedEls = selectedEls.filter(x => x !== el); el.classList.remove('selected');
+            }
+          });
+          if (selectedEls.length) showOverlay(selectedEls[selectedEls.length - 1]);
+          return;
+        }
+
+        if (!isDraggingEl) return;
+        const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+        dragOffsets.forEach(obj => {
+          let nl = obj.l + dx, nt = obj.t + dy;
+          if (obj.el === selectedEl) {
+            if (Math.abs(nl) < 10) nl = 0; if (Math.abs(nt) < 10) nt = 0;
+          }
+          obj.el.style.left = nl + 'px'; obj.el.style.top = nt + 'px';
+        });
+        showOverlay(selectedEl);
+      };
+
+      doc.onmouseup = () => {
+        const wasLasso = !!lassoStart;
+        const wasDragging = isDraggingEl;
+        if (lassoStart) { lassoStart = null; document.getElementById('lasso').style.display = 'none'; renderLayers(); renderPanel(); }
+        isDraggingEl = false;
+        // Only save history when an actual edit (drag or lasso) occurred
+        if (wasDragging || wasLasso) {
+          saveBack();
+          pushHistory();
+        }
+        renderLayers();
+      };
+      doc.onkeydown = handleShortcuts; // Add shortcut listener to iframe
+      window.onmouseup = () => { isDraggingEl = false; isResizing = false; renderLayers(); };
+    }
+
+    function toggleShapeMenu() {
+      const m = document.getElementById('shape-menu');
+      m.style.display = m.style.display === 'block' ? 'none' : 'block';
+      event.stopPropagation();
+    }
+
+    function insertItem(type) {
+      const doc = getDoc();
+      if (!doc) return;
+      const el = doc.createElement('div');
+      el.setAttribute('data-editable', '');
+      el.style.position = 'absolute';
+      el.style.left = '50px';
+      el.style.top = '50px';
+
+      if (type === 'text') {
+        el.innerHTML = '새 텍스트';
+        el.style.fontSize = '32px';
+        el.style.padding = '10px';
+        el.style.color = '#333333';
+      } else if (type === 'box') {
+        el.style.width = '200px'; el.style.height = '150px';
+        el.style.backgroundColor = '#7c6cff';
+      } else if (type === 'rbox') {
+        el.style.width = '200px'; el.style.height = '150px';
+        el.style.backgroundColor = '#42d9a0';
+        el.style.borderRadius = '20px';
+      } else if (type === 'circle') {
+        el.style.width = '150px'; el.style.height = '150px';
+        el.style.backgroundColor = '#ffa94d';
+        el.style.borderRadius = '50%';
+      } else if (type === 'tri') {
+        el.style.width = '150px'; el.style.height = '150px';
+        el.style.backgroundColor = '#ff5370';
+        el.style.clipPath = 'polygon(50% 0%, 0% 100%, 100% 100%)';
+      } else if (type === 'line') {
+        el.style.width = '200px'; el.style.height = '4px';
+        el.style.backgroundColor = '#6b6b85';
+      }
+
+      doc.body.appendChild(el);
+      selectedEls = [el];
+      selectedEl = el;
+      if (type === 'image') {
+        const inp = document.createElement('input');
+        inp.type = 'file'; inp.accept = 'image/*';
+        inp.onchange = ev => {
+          const f = ev.target.files[0];
+          if (!f) return;
+          const reader = new FileReader();
+          reader.onload = e64 => {
+            const img = doc.createElement('img');
+            img.src = e64.target.result;
+            img.style.width = '100%'; img.style.display = 'block';
+            el.innerHTML = '';
+            el.appendChild(img);
+            el.style.width = '200px';
+            saveBack(); pushHistory(); renderLayers();
+          };
+          reader.readAsDataURL(f);
+        };
+        inp.click();
+      }
+      injectEditMode();
+      showOverlay(el);
+      saveBack();
+      pushHistory();
+      renderLayers();
+      toast('추가됨', 'ok');
+    }
+
+    // ═══════════════════════════════════════════
+    // LAYER PANEL LOGIC
+    // ═══════════════════════════════════════════
+    function renderLayers() {
+      const doc = getDoc();
+      if (!doc) return;
+      const list = document.getElementById('layer-list');
+      if (!list) return;
+
+      // Initialize delegation ONCE
+      if (!list.dataset.inited) {
+        list.dataset.inited = 'true';
+        list.addEventListener('click', (e) => {
+          const btn = e.target.closest('.layer-op') || e.target.closest('.layer-fold');
+          if (btn) {
+            e.stopPropagation();
+            e.preventDefault();
+            const action = btn.dataset.action;
+            const eid = btn.dataset.eid;
+            if (action === 'fold') toggleFold(eid);
+            else if (action === 'vis') toggleVisibility(eid, e);
+            else if (action === 'lock') toggleLock(eid, e);
+            else if (action === 'rename') renameLayer(eid, e);
+            else if (action === 'detach') detachByEid(eid, e);
+            else if (action === 'delete') deleteLayer(eid, e);
+            return;
+          }
+
+          const item = e.target.closest('.layer-item');
+          if (item) {
+            e.stopPropagation();
+            const eid = item.dataset.eid;
+            const el = doc.querySelector(`[data-eid="${eid}"]`);
+            if (!el) return;
+
+            const isMulti = e.shiftKey, isExclude = e.ctrlKey || e.metaKey;
+            if (isExclude) {
+              selectedEls = selectedEls.filter(x => x.dataset?.eid !== eid);
+              el.classList.remove('selected');
+            } else if (isMulti) {
+              if (!selectedEls.some(x => x.dataset?.eid === eid)) {
+                selectedEls.push(el);
+                el.classList.add('selected');
+              }
+            } else {
+              doc.querySelectorAll('[data-editable]').forEach(x => x.classList.remove('selected'));
+              selectedEls = [el];
+              el.classList.add('selected');
+            }
+
+            selectedEl = selectedEls[selectedEls.length - 1] || null;
+            if (selectedEl) showOverlay(selectedEl); else hideOverlay();
+            renderLayers();
+            renderPanel();
+          }
+        });
+      }
+
+      list.innerHTML = '';
+
+      const buildTree = (parent, depth = 0) => {
+        const children = [];
+        const gatherEditable = (node) => {
+          for (const child of node.children) {
+            if (child.hasAttribute('data-editable')) {
+              children.push(child);
+            } else {
+              gatherEditable(child);
+            }
+          }
+        };
+
+        if (depth === 0) gatherEditable(parent);
+        else {
+          for (const child of parent.children) {
+            if (child.hasAttribute('data-editable')) children.push(child);
+            else gatherEditable(child);
+          }
+        }
+
+        [...children].reverse().forEach(el => {
+          const eid = el.dataset.eid;
+          const hasEditableChildren = Array.from(el.children).some(c => c.hasAttribute('data-editable') || c.querySelector('[data-editable]'));
+          const isCollapsed = collapsedState.has(eid);
+
+          const item = renderLayerItem(el, depth, hasEditableChildren, isCollapsed);
+          list.appendChild(item);
+          if (!isCollapsed && hasEditableChildren) buildTree(el, depth + 1);
+        });
+      };
+
+      buildTree(doc.body);
+    }
+
+    function renderLayerItem(el, depth, isParent, isCollapsed) {
+      const eid = el.dataset.eid;
+      const isActive = selectedEls.some(x => x.dataset?.eid === eid);
+      const isHidden = el.style.display === 'none' || el.style.visibility === 'hidden';
+      const isLocked = el.dataset.locked === 'true';
+
+      const item = document.createElement('div');
+      item.className = 'layer-item' + (isActive ? ' active' : '') + (isHidden ? ' hidden' : '') + (isLocked ? ' locked' : '');
+      item.style.paddingLeft = (depth * 14) + 'px';
+      item.dataset.eid = eid;
+
+      let icon = '🔳';
+      if (el.querySelector('img')) icon = '🖼️';
+      else if (el.style.clipPath) icon = '▲';
+      else if (el.style.borderRadius === '50%') icon = '⭕';
+      else if (el.innerText.trim().length > 0) icon = 'T';
+
+      const name = el.dataset.name || el.innerText.trim().substring(0, 18) || '컴포넌트';
+      const foldIcon = isParent ? (isCollapsed ? '▸' : '▾') : '<span style="display:inline-block;width:10px"></span>';
+
+      item.innerHTML = `
+        <div class="layer-drag" title="드래그하여 순서 변경">⠿</div>
+        <div class="layer-fold" data-action="fold" data-eid="${eid}" style="font-size:10px;min-width:12px;text-align:center">${foldIcon}</div>
+        <div class="layer-icon">${icon}</div>
+        <div class="layer-name">${name}</div>
+        <div class="layer-ops">
+          <button class="layer-op btn-vis ${isHidden ? '' : 'active'}" data-action="vis" data-eid="${eid}" title="표시/숨기기">${isHidden ? '👁️‍🗨️' : '👁️'}</button>
+          <button class="layer-op btn-lock ${isLocked ? 'active' : ''}" data-action="lock" data-eid="${eid}" title="잠금/해제">${isLocked ? '🔒' : '🔓'}</button>
+          <button class="layer-op btn-rename" data-action="rename" data-eid="${eid}" title="이름 변경">✏️</button>
+          <button class="layer-op btn-detach" data-action="detach" data-eid="${eid}" title="부모에서 분리">⎋</button>
+          <button class="layer-op btn-delete" data-action="delete" data-eid="${eid}" title="삭제">✕</button>
+        </div>
+      `;
+
+      const dragHandle = item.querySelector('.layer-drag');
+      dragHandle.draggable = true;
+      dragHandle.addEventListener('dragstart', (e) => {
+        if (el.dataset.locked === 'true') { e.preventDefault(); return; }
+        e.dataTransfer.setData('text/plain', eid);
+        item.classList.add('dragging');
+      });
+      dragHandle.addEventListener('dragend', () => item.classList.remove('dragging'));
+
+      item.addEventListener('dragover', (e) => { e.preventDefault(); item.classList.add('drag-over'); });
+      item.addEventListener('dragleave', () => item.classList.remove('drag-over'));
+      item.addEventListener('drop', (e) => {
+        e.preventDefault();
+        item.classList.remove('drag-over');
+        const fromEid = e.dataTransfer.getData('text/plain');
+        if (fromEid && fromEid !== eid) reorderLayer(fromEid, eid);
+      });
+
+      return item;
+    }
+
+    function toggleFold(eid) {
+      if (collapsedState.has(eid)) collapsedState.delete(eid);
+      else collapsedState.add(eid);
+      renderLayers();
+    }
+
+    function toggleVisibility(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      el.style.display = (el.style.display === 'none') ? '' : 'none';
+      if (el.style.display === 'none' && selectedEls.some(x => x.dataset?.eid === eid)) hideOverlay();
+      renderLayers();
+      saveBack();
+    }
+
+    function toggleLock(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      el.dataset.locked = (el.dataset.locked === 'true') ? 'false' : 'true';
+      if (el.dataset.locked === 'true' && selectedEls.some(x => x.dataset?.eid === eid)) hideOverlay();
+      renderLayers();
+      saveBack();
+    }
+
+    function renameLayer(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      const newName = prompt('컴포넌트 이름을 입력하세요:', el.dataset.name || '');
+      if (newName !== null) {
+        el.dataset.name = newName;
+        renderLayers();
+        saveBack();
+      }
+    }
+
+    function deleteLayer(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      if (!confirm('정말 삭제하시겠습니까?')) return;
+      el.remove();
+      selectedEls = selectedEls.filter(x => x.dataset?.eid !== eid);
+      selectedEl = selectedEls[selectedEls.length - 1] || null;
+      if (!selectedEl) hideOverlay(); else showOverlay(selectedEl);
+      renderLayers();
+      saveBack();
+      pushHistory();
+    }
+
+    function detachByEid(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el || !el.parentElement || el.parentElement === doc.body) return;
+      doc.body.appendChild(el);
+      renderLayers();
+      saveBack();
+      pushHistory();
+      toast('그룹에서 분리됨', 'ok');
+    }
+
+    function moveLayer(eid, dir, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      if (dir === 1) { if (el.nextElementSibling) el.parentNode.insertBefore(el.nextElementSibling, el); }
+      else { if (el.previousElementSibling) el.parentNode.insertBefore(el, el.previousElementSibling); }
+      saveBack(); pushHistory(); renderLayers(); showOverlay(el);
+    }
+
+    function reorderLayer(fromEid, toEid) {
+      const doc = getDoc();
+      const fromEl = doc.querySelector(`[data-eid="${fromEid}"]`);
+      const toEl = doc.querySelector(`[data-eid="${toEid}"]`);
+      if (!fromEl || !toEl || toEl.contains(fromEl)) return;
+      toEl.after(fromEl);
+      saveBack(); pushHistory(); renderLayers();
+    }
+
+
+    // ═══════════════════════════════════════════
+    // SELECTION OVERLAY
+    // ═══════════════════════════════════════════
+    function getElemRectInSlide(el) {
+      const frame = document.getElementById('slide-frame');
+      const iframeBody = frame.contentDocument && frame.contentDocument.body;
+      let left = 0, top = 0, cur = el;
+      while (cur && cur !== iframeBody) {
+        left += cur.offsetLeft - (cur.offsetParent ? cur.offsetParent.scrollLeft || 0 : 0);
+        top += cur.offsetTop - (cur.offsetParent ? cur.offsetParent.scrollTop || 0 : 0);
+        cur = cur.offsetParent;
+      }
+      return { left, top, width: el.offsetWidth, height: el.offsetHeight };
+    }
+
+    function showOverlay(el) {
+      if (!el) { hideOverlay(); return; }
+      const overlay = document.getElementById('sel-overlay');
+      const rect = getElemRectInSlide(el);
+
+      overlay.style.display = 'block';
+      overlay.style.left = rect.left + 'px';
+      overlay.style.top = rect.top + 'px';
+      overlay.style.width = rect.width + 'px';
+      overlay.style.height = rect.height + 'px';
+
+      overlay.querySelectorAll('.sel-handle').forEach(handle => {
+        handle.onmousedown = (e) => startResize(e, handle.dataset.h, el);
+      });
+    }
+    function hideOverlay() {
+      document.getElementById('sel-overlay').style.display = 'none';
+    }
+
+    function startResize(e, handlePos, el) {
+      e.preventDefault(); e.stopPropagation();
+      isResizing = true; resizeHandle = handlePos;
+      resizeStartX = e.clientX; resizeStartY = e.clientY;
+      const frame = document.getElementById('slide-frame');
+      const scale = frame.offsetWidth / slideW;
+
+      resizeStartW = el.offsetWidth;
+      resizeStartH = el.offsetHeight;
+      resizeStartL = parseFloat(el.style.left) || 0;
+      resizeStartT = parseFloat(el.style.top) || 0;
+
+      const onMove = (ev) => {
+        if (!isResizing) return;
+
+        // Normalize coordinates if event comes from iframe
+        let clientX = ev.clientX;
+        let clientY = ev.clientY;
+        if (ev.currentTarget !== window && ev.currentTarget !== document) {
+          const rect = frame.getBoundingClientRect();
+          clientX += rect.left;
+          clientY += rect.top;
+        }
+
+        const dx = (clientX - resizeStartX) / scale;
+        const dy = (clientY - resizeStartY) / scale;
+
+        const isProportional = ev.shiftKey;
+        const ratio = resizeStartW / resizeStartH;
+
+        if (handlePos.includes('r')) {
+          let nw = Math.max(10, resizeStartW + dx);
+          if (isProportional) {
+            let nh = nw / ratio;
+            el.style.width = nw + 'px';
+            el.style.height = nh + 'px';
+          } else {
+            el.style.width = nw + 'px';
+          }
+        }
+        if (handlePos.includes('l')) {
+          let nw = Math.max(10, resizeStartW - dx);
+          if (isProportional) {
+            let nh = nw / ratio;
+            el.style.width = nw + 'px';
+            el.style.height = nh + 'px';
+            el.style.left = (resizeStartL + dx) + 'px';
+          } else {
+            el.style.width = nw + 'px';
+            el.style.left = (resizeStartL + dx) + 'px';
+          }
+        }
+        if (handlePos.includes('b')) {
+          let nh = Math.max(10, resizeStartH + dy);
+          if (isProportional) {
+            if (!handlePos.includes('r') && !handlePos.includes('l')) {
+              let nw = nh * ratio;
+              el.style.width = nw + 'px';
+              el.style.height = nh + 'px';
+            }
+          } else {
+            el.style.height = nh + 'px';
+          }
+        }
+        if (handlePos.includes('t')) {
+          let nh = Math.max(10, resizeStartH - dy);
+          if (isProportional) {
+            if (!handlePos.includes('r') && !handlePos.includes('l')) {
+              let nw = nh * ratio;
+              el.style.width = nw + 'px';
+              el.style.height = nh + 'px';
+              el.style.top = (resizeStartT + dy) + 'px';
+            }
+          } else {
+            el.style.height = nh + 'px';
+            el.style.top = (resizeStartT + dy) + 'px';
+          }
+        }
+        showOverlay(el);
+      };
+
+      const onUp = () => {
+        isResizing = false;
+        window.removeEventListener('mousemove', onMove);
+        window.removeEventListener('mouseup', onUp);
+        const doc = getDoc();
+        if (doc) {
+          doc.removeEventListener('mousemove', onMove);
+          doc.removeEventListener('mouseup', onUp);
+        }
+        saveBack();
+        pushHistory();
+      };
+
+      window.addEventListener('mousemove', onMove);
+      window.addEventListener('mouseup', onUp);
+      const doc = getDoc();
+      if (doc) {
+        doc.addEventListener('mousemove', onMove);
+        doc.addEventListener('mouseup', onUp);
+      }
+    }
+
+    // ═══════════════════════════════════════════
+    // ELEMENT OPS
+    // ═══════════════════════════════════════════
+    function editSelectedElem() {
+      if (!selectedEl) return;
+      const doc = getDoc();
+      const cs = doc.defaultView.getComputedStyle(selectedEl);
+      document.getElementById('em-content').value = selectedEl.innerHTML;
+      document.getElementById('em-fsize').value = parseInt(cs.fontSize) || '';
+      document.getElementById('em-fweight').value = cs.fontWeight || '';
+      document.getElementById('em-fcolor').value = rgb2hex(cs.color) || '#000000';
+      document.getElementById('em-fcolor-txt').value = rgb2hex(cs.color) || '#000000';
+      document.getElementById('em-bgcolor').value = rgb2hex(cs.backgroundColor) || '#ffffff';
+      document.getElementById('em-bgcolor-txt').value = rgb2hex(cs.backgroundColor) || '#ffffff';
+      document.getElementById('em-width').value = selectedEl.style.width || '';
+      document.getElementById('em-height').value = selectedEl.style.height || '';
+      document.getElementById('em-extra-css').value = selectedEl.getAttribute('style') || '';
+      document.getElementById('em-radius').value = parseInt(cs.borderRadius) || 0;
+      document.getElementById('pfield-radius').style.display = (selectedEl.tagName === 'DIV' && !selectedEl.innerText) ? 'block' : 'none';
+      syncColorPicker('em-fcolor', 'em-fcolor-txt');
+      syncColorPicker('em-bgcolor', 'em-bgcolor-txt');
+      document.getElementById('elem-modal').style.display = 'flex';
+    }
+    function closeElemModal() {
+      document.getElementById('elem-modal').style.display = 'none';
+    }
+    function applyElemEdit() {
+      if (!selectedEl) return;
+      const content = document.getElementById('em-content').value;
+      const fsize = document.getElementById('em-fsize').value;
+      const fweight = document.getElementById('em-fweight').value;
+      const fcolor = document.getElementById('em-fcolor').value;
+      const bgcolor = document.getElementById('em-bgcolor').value;
+      const width = document.getElementById('em-width').value;
+      const height = document.getElementById('em-height').value;
+      const extra = document.getElementById('em-extra-css').value;
+      const radius = document.getElementById('em-radius').value;
+
+      selectedEl.innerHTML = content;
+      if (fsize) selectedEl.style.fontSize = fsize + 'px';
+      if (fweight) selectedEl.style.fontWeight = fweight;
+      if (fcolor) selectedEl.style.color = fcolor;
+      if (bgcolor) selectedEl.style.backgroundColor = bgcolor;
+
+      if (width) selectedEl.style.width = width + 'px';
+      if (height) selectedEl.style.height = height + 'px';
+      if (radius && !selectedEl.innerText) selectedEl.style.borderRadius = radius + 'px';
+
+      if (extra) {
+        const temp = document.createElement('div');
+        temp.style.cssText = extra;
+        for (let i = 0; i < temp.style.length; i++) {
+          const prop = temp.style[i];
+          selectedEl.style.setProperty(prop, temp.style.getPropertyValue(prop));
+        }
+      }
+
+
+      saveBack();
+      pushHistory();
+      showOverlay(selectedEl);
+      closeElemModal();
+      toast('적용됨', 'ok');
+    }
+
+    function copyElem() {
+      if (!selectedEl) return;
+      copiedElemHtml = selectedEl.outerHTML;
+      toast('요소 복사됨', 'ok');
+    }
+
+    function pasteElem() {
+      if (!copiedElemHtml) return;
+      const doc = getDoc();
+      if (!doc) return;
+      const temp = doc.createElement('div');
+      temp.innerHTML = copiedElemHtml;
+      const clone = temp.firstChild;
+      clone.style.left = (parseFloat(clone.style.left) || 0) + 20 + 'px';
+      clone.style.top = (parseFloat(clone.style.top) || 0) + 20 + 'px';
+      clone.classList.remove('selected');
+      doc.body.appendChild(clone);
+
+      selectedEl = clone;
+      injectEditMode();
+      showOverlay(selectedEl);
+      saveBack();
+      pushHistory();
+      toast('요소 붙여넣기됨', 'ok');
+    }
+    function duplicateElem() {
+      if (!selectedEl) return;
+      const doc = getDoc();
+      const clone = selectedEl.cloneNode(true);
+      clone.style.left = (parseFloat(selectedEl.style.left) || 0) + 20 + 'px';
+      clone.style.top = (parseFloat(selectedEl.style.top) || 0) + 20 + 'px';
+      clone.classList.remove('selected');
+      selectedEl.parentNode.insertBefore(clone, selectedEl.nextSibling);
+
+      selectedEl = clone;
+      saveBack();
+      pushHistory();
+      injectEditMode();
+      showOverlay(selectedEl);
+      toast('요소 복제됨', 'ok');
+    }
+    function deleteElem() {
+      if (!selectedEl) return;
+      selectedEl.remove();
+      selectedEl = null;
+      hideOverlay();
+      saveBack();
+      pushHistory();
+      toast('요소 삭제됨');
+    }
+
+    function detachElem() {
+      if (!selectedEl) return;
+      const doc = getDoc();
+      if (selectedEl.parentNode === doc.body) { toast('이미 최상위 요소입니다', 'err'); return; }
+      const pos = getElemRectInSlide(selectedEl);
+      selectedEl.style.width = pos.width + 'px';
+      selectedEl.style.height = pos.height + 'px';
+      selectedEl.style.position = 'absolute';
+      selectedEl.style.left = pos.left + 'px';
+      selectedEl.style.top = pos.top + 'px';
+      doc.body.appendChild(selectedEl);
+      showOverlay(selectedEl);
+      saveBack();
+      pushHistory();
+      renderLayers();
+      toast('분리됨', 'ok');
+    }
+
+    function detachByEid(eid, e) {
+      if (e) e.stopPropagation();
+      const doc = getDoc();
+      const el = doc.querySelector(`[data-eid="${eid}"]`);
+      if (!el) return;
+      selectedEl = el;
+      selectedEls = [el];
+      detachElem();
+    }
+
+    // ═══════════════════════════════════════════
+    // ALIGN
+    // ═══════════════════════════════════════════
+    function alignElem(type) {
+      if (!selectedEls.length) { toast('요소를 선택하세요', 'err'); return; }
+      selectedEls.forEach(el => {
+        const W = slideW, H = slideH;
+        const w = el.offsetWidth, h = el.offsetHeight;
+
+        // Ensure body in iframe is relative
+        const doc = getDoc();
+        if (doc.body.style.position !== 'relative') doc.body.style.position = 'relative';
+
+        // Target absolute positions (relative to slide body)
+        let targetL = parseFloat(el.style.left) || 0;
+        let targetT = parseFloat(el.style.top) || 0;
+
+        if (type === 'left') targetL = 0;
+        if (type === 'center') targetL = (W - w) / 2;
+        if (type === 'right') targetL = (W - w);
+        if (type === 'top') targetT = 0;
+        if (type === 'middle') targetT = (H - h) / 2;
+        if (type === 'bottom') targetT = (H - h);
+        if (type === 'hcenter') { targetL = (W - w) / 2; targetT = (H - h) / 2; }
+
+        if (type.includes('left') || type.includes('center') || type.includes('right') || type === 'hcenter') {
+          el.style.left = (targetL) + 'px';
+        }
+        if (type.includes('top') || type.includes('middle') || type.includes('bottom') || type === 'hcenter') {
+          el.style.top = (targetT) + 'px';
+        }
+        if (type === 'fill') { el.style.left = '0'; el.style.top = '0'; el.style.width = W + 'px'; el.style.height = H + 'px'; }
+      });
+      saveBack();
+      pushHistory();
+      showOverlay(selectedEl);
+      toast('정렬 적용됨', 'ok');
+    }
+
+    function moveLayer(dir) {
+      if (!selectedEl) { toast('요소를 선택하세요', 'err'); return; }
+      const parent = selectedEl.parentNode;
+      if (!parent) return;
+
+      if (dir === 'front') {
+        parent.appendChild(selectedEl);
+      } else if (dir === 'back') {
+        parent.insertBefore(selectedEl, parent.firstChild);
+      } else if (dir === 'forward') {
+        const next = selectedEl.nextElementSibling;
+        if (next) {
+          parent.insertBefore(selectedEl, next.nextElementSibling);
+        }
+      } else if (dir === 'backward') {
+        const prev = selectedEl.previousElementSibling;
+        if (prev) {
+          parent.insertBefore(selectedEl, prev);
+        }
+      }
+      saveBack();
+      pushHistory();
+      renderLayers();
+      showOverlay(selectedEl);
+      toast('순서 변경됨', 'ok');
+    }
+
+    // ═══════════════════════════════════════════
+    // PROJECT JSON
+    // ═══════════════════════════════════════════
+    function saveProjectJSON() {
+      if (!slides.length) return;
+      const data = { slides, slideW, slideH, version: '1.2' };
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `slides_${new Date().getTime()}.json`;
+      a.click();
+      toast('JSON 프로젝트 저장됨', 'ok');
+    }
+
+    function loadProjectJSON() {
+      const inp = document.createElement('input');
+      inp.type = 'file'; inp.accept = '.json';
+      inp.onchange = (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        const r = new FileReader();
+        r.onload = (ev) => {
+          try {
+            const data = JSON.parse(ev.target.result);
+            if (data.slides) {
+              slides = data.slides;
+              slideW = data.slideW || 1280;
+              slideH = data.slideH || 720;
+              document.getElementById('ratio-select').value = (slideH === 720) ? '16/9' : '4/3';
+              cur = 0;
+              renderAll();
+              pushHistory();
+              toast('프로젝트 불러오기 완료', 'ok');
+            }
+          } catch (err) { toast('잘못된 JSON 형식입니다', 'err'); }
+        };
+        r.readAsText(f);
+      };
+      inp.click();
+    }
+
+    // ═══════════════════════════════════════════
+    // PANEL
+    // ═══════════════════════════════════════════
+    function setTab(t) {
+      activeTab = t;
+      document.querySelectorAll('.ptab').forEach((el, i) => {
+        el.classList.toggle('active', ['code', 'element', 'slide', 'align'][i] === t);
+      });
+      renderPanel();
+    }
+
+    function renderPanel() {
+      const body = document.getElementById('panel-body');
+      if (!slides.length) { body.innerHTML = '<div class="empty" style="height:200px"><p>슬라이드를 추가하세요</p></div>'; return; }
+      if (activeTab === 'code') renderCodePanel(body);
+      else if (activeTab === 'element') renderElementPanel(body);
+      else if (activeTab === 'slide') renderSlidePanel(body);
+      else renderAlignPanel(body);
+    }
+
+    function renderCodePanel(body) {
+      const s = slides[cur];
+      body.innerHTML = `
+    <div class="psection">
+      <h4>슬라이드 HTML 코드</h4>
+      <textarea class="code-editor" id="curr-code" style="min-height:340px" oninput="liveUpdateHTML(this.value)">${esc(s.html)}</textarea>
+    </div>`;
+    }
+    function liveUpdateHTML(val) {
+      if (!slides[cur]) return;
+      slides[cur].html = val;
+      document.getElementById('slide-frame').srcdoc = val;
+    }
+
+    function renderElementPanel(body) {
+      if (!selectedEl) {
+        body.innerHTML = `<div class="empty"><div class="ei">🖱️</div><h3>요소 미선택</h3><p>슬라이드 내 요소를 클릭하세요.</p></div>`;
+        return;
+      }
+      const doc = getDoc();
+      const cs = doc.defaultView.getComputedStyle(selectedEl);
+      const isText = (selectedEl.innerText.trim().length > 0 || selectedEl.tagName === 'P' || selectedEl.tagName === 'SPAN' || selectedEl.tagName.startsWith('H'));
+      const hexC = rgb2hex(cs.color), hexB = rgb2hex(cs.backgroundColor);
+
+      body.innerHTML = `
+    <div class="psection">
+      <h4>내용 (HTML)</h4>
+      <textarea oninput="applyProp('innerHTML', this.value)" style="min-height:60px">${selectedEl.innerHTML}</textarea>
+    </div>
+    ${isText ? `
+    <div class="psection">
+      <h4>글자 스타일</h4>
+      <div class="row2">
+        <div class="pfield"><label>크기</label><input type="number" value="${parseInt(cs.fontSize) || ''}" oninput="applyStyle('fontSize', this.value+'px')"></div>
+        <div class="pfield"><label>글꼴</label>
+          <select onchange="applyStyle('fontFamily', this.value)">
+            <option value="sans-serif" ${cs.fontFamily.includes('sans-serif') ? 'selected' : ''}>Sans Serif</option>
+            <option value="'Noto Sans KR', sans-serif" ${cs.fontFamily.includes('Noto Sans KR') ? 'selected' : ''}>Noto Sans KR</option>
+            <option value="'Pretendard', sans-serif" ${cs.fontFamily.includes('Pretendard') ? 'selected' : ''}>Pretendard</option>
+            <option value="serif" ${cs.fontFamily.includes('serif') ? 'selected' : ''}>Serif</option>
+          </select>
+        </div>
+      </div>
+      <div class="pfield"><label>글자 색상</label>
+        <div class="color-row"><input type="color" value="${hexC}" oninput="applyStyle('color', this.value)"><input type="text" value="${hexC}" oninput="applyStyle('color', this.value)"></div>
+      </div>
+    </div>` : ''}
+    <div class="psection">
+      <h4>레이아웃</h4>
+      <div class="pfield"><label>배경색</label>
+        <div class="color-row"><input type="color" value="${hexB}" oninput="applyStyle('backgroundColor', this.value)"><input type="text" value="${hexB}" oninput="applyStyle('backgroundColor', this.value)"></div>
+      </div>
+      <div class="row2">
+        <div class="pfield"><label>너비</label><input type="number" value="${parseInt(selectedEl.style.width) || ''}" placeholder="auto" oninput="applyStyle('width', this.value+'px')"></div>
+        <div class="pfield"><label>높이</label><input type="number" value="${parseInt(selectedEl.style.height) || ''}" placeholder="auto" oninput="applyStyle('height', this.value+'px')"></div>
+      </div>
+      <div class="row2">
+        <div class="pfield"><label>X</label><input type="number" value="${parseInt(selectedEl.style.left) || 0}" oninput="applyStyle('left', this.value+'px')"></div>
+        <div class="pfield"><label>Y</label><input type="number" value="${parseInt(selectedEl.style.top) || 0}" oninput="applyStyle('top', this.value+'px')"></div>
+      </div>
+    </div>
+    
+    <div class="psection">
+      <h4>스타일 효과</h4>
+      <div class="pfield">
+        <label>불투명도 (Opacity) <span style="float:right" id="val-opacity">${Math.round((parseFloat(cs.opacity) || 1) * 100)}%</span></label>
+        <input type="range" min="0" max="100" value="${(parseFloat(cs.opacity) || 1) * 100}" 
+               oninput="applyStyle('opacity', this.value/100); document.getElementById('val-opacity').textContent=this.value+'%'">
+      </div>
+      <div class="row2">
+        <div class="pfield"><label>테두리 두께</label>
+          <input type="number" value="${parseInt(cs.borderWidth) || 0}" oninput="applyStyle('borderWidth', this.value+'px'); if(this.value>0 && !selectedEl.style.borderStyle) applyStyle('borderStyle', 'solid')">
+        </div>
+        <div class="pfield"><label>스타일</label>
+          <select onchange="applyStyle('borderStyle', this.value)">
+            <option value="none" ${cs.borderStyle === 'none' ? 'selected' : ''}>없음</option>
+            <option value="solid" ${cs.borderStyle === 'solid' ? 'selected' : ''}>실선</option>
+            <option value="dashed" ${cs.borderStyle === 'dashed' ? 'selected' : ''}>점선</option>
+            <option value="dotted" ${cs.borderStyle === 'dotted' ? 'selected' : ''}>도트</option>
+          </select>
+        </div>
+      </div>
+      <div class="pfield"><label>테두리 색상</label>
+        <div class="color-row">
+          <input type="color" value="${rgb2hex(cs.borderColor) || '#000000'}" oninput="applyStyle('borderColor', this.value)">
+          <input type="text" value="${rgb2hex(cs.borderColor) || '#000000'}" oninput="applyStyle('borderColor', this.value)">
+        </div>
+      </div>
+      <div class="pfield">
+        <label>그림자 (Box Shadow)</label>
+        <div class="row2">
+          <input type="number" placeholder="X" style="width:25%" oninput="updateShadow(this.value, 0)">
+          <input type="number" placeholder="Y" style="width:25%" oninput="updateShadow(this.value, 1)">
+          <input type="number" placeholder="Blur" style="width:25%" oninput="updateShadow(this.value, 2)">
+          <input type="color" style="width:20%;height:30px;padding:2px" oninput="updateShadow(this.value, 3)">
+        </div>
+      </div>
+    </div>
+
+</div>
+
+  <div class="psection">
+    <div class="row2">
+      <button class="apply-btn ghost" onclick="duplicateElem()">복제</button>
+      <button class="apply-btn" style="background:var(--danger)" onclick="deleteElem()">삭제</button>
+    </div>
+    <button class="apply-btn ghost" style="margin-top:8px" onclick="editSelectedElem()">고급 스타일/곡률 설정...</button>
+  </div>`;
+    }
+
+    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBack(); } }
+    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBack(); } }
+    function rewriteOverlay() { if (selectedEl) showOverlay(selectedEl); }
+    function updatePanelFromElem() { if (activeTab === 'element') renderPanel(); }
+
+    function renderSlidePanel(body) {
+      if (!slides[cur]) return;
+      const s = slides[cur];
+      body.innerHTML = `
+  <div class="psection">
+    <h4>슬라이드 설정</h4>
+    <div class="pfield"><label>제목</label>
+      <input type="text" id="slide-title" value="${s.title || ''}">
+    </div>
+    <button class="apply-btn" onclick="applyTitle()">저장</button>
+    <div class="pfield" style="margin-top:14px"><label>배경색</label>
+      <div class="color-row">
+        <input type="color" id="bg-c" value="${rgb2hex(getDoc()?.body.style.backgroundColor) || '#ffffff'}">
+        <input type="text" id="bg-ct" value="${rgb2hex(getDoc()?.body.style.backgroundColor) || '#ffffff'}">
+      </div>
+    </div>
+    <button class="apply-btn" onclick="applyBg()">배경 적용</button>
+  </div>
+  <div class="psection">
+    <button class="apply-btn ghost" onclick="addBlankSlide()">슬라이드 추가</button>
+    <button class="apply-btn ghost" onclick="duplicateSlide()">슬라이드 복제</button>
+    <button class="apply-btn" style="background:var(--danger)" onclick="deleteSlide()">슬라이드 삭제</button>
+  </div>`;
+      syncColorPicker('bg-c', 'bg-ct');
+    }
+
+    function applyBg() {
+      const doc = getDoc();
+      if (!doc) return;
+      const color = document.getElementById('bg-c').value;
+      doc.body.style.backgroundColor = color;
+      saveBack();
+      pushHistory();
+      toast('배경색 적용됨', 'ok');
+    }
+    function applyTitle() {
+      const val = document.getElementById('slide-title').value;
+      if (slides[cur]) slides[cur].title = val;
+      renderStrip();
+      toast('제목 저장됨');
+    }
+
+    function renderAlignPanel(body) {
+      body.innerHTML = `
+  <div class="psection">
+    <h4>가로 정렬</h4>
+    <div class="align-grid">
+      <button class="align-btn" onclick="alignElem('left')">왼쪽</button>
+      <button class="align-btn" onclick="alignElem('center')">가운데</button>
+      <button class="align-btn" onclick="alignElem('right')">오른쪽</button>
+    </div>
+  </div>
+  <div class="psection">
+    <h4>세로 정렬</h4>
+    <div class="align-grid">
+      <button class="align-btn" onclick="alignElem('top')">위</button>
+      <button class="align-btn" onclick="alignElem('middle')">가운데</button>
+      <button class="align-btn" onclick="alignElem('bottom')">아래</button>
+    </div>
+  </div>
+  <div class="psection">
+    <h4>레이어 순서</h4>
+    <div class="align-grid" style="grid-template-columns: repeat(2, 1fr);">
+      <button class="align-btn" onclick="moveLayer('front')">맨 앞으로</button>
+      <button class="align-btn" onclick="moveLayer('forward')">앞으로</button>
+      <button class="align-btn" onclick="moveLayer('backward')">뒤로</button>
+      <button class="align-btn" onclick="moveLayer('back')">맨 뒤로</button>
+    </div>
+  </div>
+  <div class="psection">
+    <h4>특수</h4>
+    <div class="align-grid">
+      <button class="align-btn" onclick="alignElem('hcenter')" style="grid-column: span 2">정중앙 배치</button>
+      <button class="align-btn" onclick="alignElem('fill')">슬라이드 채움</button>
+    </div>
+  </div>`;
+    }
+
+
+    // ═══════════════════════════════════════════
+    // EXPORT — PPTX
+    // ═══════════════════════════════════════════
+    async function exportPPTX() {
+      if (!slides.length) return;
+      const btn = document.getElementById('btn-pptx');
+      btn.disabled = true; btn.textContent = '변환 중...';
+      setProgress(0.05);
+      try {
+        const pptx = new PptxGenJS();
+        pptx.layout = (slideH === 720) ? 'LAYOUT_16x9' : 'LAYOUT_4x3';
+        for (let i = 0; i < slides.length; i++) {
+          setProgress(0.05 + (i / slides.length) * 0.88);
+          const img = await captureSlide(slides[i].html);
+          const slide = pptx.addSlide();
+          slide.addImage({ data: img, x: 0, y: 0, w: '100%', h: '100%' });
+        }
+        setProgress(0.95);
+        await pptx.writeFile({ fileName: '발표자료.pptx' });
+        setProgress(1);
+        toast('PPTX 저장 완료 🎉', 'ok');
+      } catch (e) {
+        console.error(e);
+        toast('PPTX 실패: ' + e.message, 'err');
+      } finally {
+        btn.disabled = false; btn.textContent = '⬇ PPTX 저장'; setTimeout(() => setProgress(0), 700);
+      }
+    }
+
+    async function exportPNG() {
+      if (!slides.length) return;
+      const btn = document.getElementById('btn-png');
+      btn.disabled = true; btn.textContent = '저장 중...';
+      try {
+        const img = await captureSlide(slides[cur].html, 'image/png');
+        const a = document.createElement('a');
+        a.href = img;
+        a.download = `slide_${cur + 1}.png`;
+        a.click();
+        toast('PNG 저장 완료!', 'ok');
+      } catch (e) { toast('PNG 실패: ' + e.message, 'err'); }
+      finally { btn.disabled = false; btn.textContent = '🖼️ PNG 저장'; }
+    }
+
+    function captureSlide(html, format = 'image/jpeg') {
+      return new Promise((resolve, reject) => {
+        const iframe = document.createElement('iframe');
+        iframe.style.cssText =
+          `position:fixed;left:-9999px;top:0;width:${slideW}px;height:${slideH}px;border:none;pointer-events:none;`;
+        iframe.sandbox = 'allow-scripts allow-same-origin';
+        document.body.appendChild(iframe);
+        iframe.onload = () => {
+          setTimeout(() => {
+            try {
+              html2canvas(iframe.contentDocument.body, {
+                width: slideW, height: slideH, scale: 2,
+                useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false
+              }).then(canvas => {
+                const dataUrl = canvas.toDataURL(format, 0.95);
+                resolve({
+                  data: dataUrl,
+                  width: canvas.width,
+                  height: canvas.height
+                });
+                document.body.removeChild(iframe);
+              }).catch(e => { document.body.removeChild(iframe); reject(e); });
+            } catch (e) { document.body.removeChild(iframe); reject(e); }
+          }, 800);
+        };
+        iframe.srcdoc = html;
+      });
+    }
+
+    async function exportPPTX() {
+      if (!slides.length) return;
+      const btn = document.getElementById('btn-pptx');
+      btn.disabled = true; btn.textContent = '변환 중...';
+      setProgress(0.05);
+      try {
+        const pptx = new PptxGenJS();
+        pptx.layout = (slideH === 720) ? 'LAYOUT_16x9' : 'LAYOUT_4x3';
+        for (let i = 0; i < slides.length; i++) {
+          setProgress(0.05 + (i / slides.length) * 0.88);
+          const result = await captureSlide(slides[i].html);
+          const slide = pptx.addSlide();
+          slide.addImage({ data: result.data, x: 0, y: 0, w: '100%', h: '100%' });
+        }
+        setProgress(0.95);
+        await pptx.writeFile({ fileName: '발표자료.pptx' });
+        setProgress(1);
+        toast('PPTX 저장 완료 🎉', 'ok');
+      } catch (e) {
+        console.error(e);
+        toast('PPTX 실패: ' + e.message, 'err');
+      } finally {
+        btn.disabled = false; btn.textContent = '⬇ PPTX 저장'; setTimeout(() => setProgress(0), 700);
+      }
+    }
+
+    async function exportPNG() {
+      if (!slides.length) return;
+      const btn = document.getElementById('btn-png');
+      btn.disabled = true; btn.textContent = '저장 중...';
+      try {
+        const result = await captureSlide(slides[cur].html, 'image/png');
+        const a = document.createElement('a');
+        a.href = result.data;
+        a.download = `slide_${cur + 1}.png`;
+        a.click();
+        toast('PNG 저장 완료!', 'ok');
+      } catch (e) { toast('PNG 실패: ' + e.message, 'err'); }
+      finally { btn.disabled = false; btn.textContent = '🖼️ PNG 저장'; }
+    }
+
+    async function exportPDF() {
+      if (!slides.length) return;
+      const btn = document.getElementById('btn-pdf');
+      btn.disabled = true; btn.textContent = 'PDF 생성 중...';
+      setProgress(0.05);
+      try {
+        const results = [];
+        for (let i = 0; i < slides.length; i++) {
+          setProgress(0.05 + (i / slides.length) * 0.85);
+          results.push(await captureSlide(slides[i].html));
+        }
+        setProgress(0.92);
+        const pdfBytes = buildPDF(results);
+        const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = '발표자료.pdf'; a.click();
+        URL.revokeObjectURL(url);
+        setProgress(1);
+        toast('PDF 저장 완료 🎉', 'ok');
+      } catch (e) { toast('PDF 실패: ' + e.message, 'err'); console.error(e); }
+      finally { btn.disabled = false; btn.textContent = '📄 PDF 저장'; setTimeout(() => setProgress(0), 700); }
+    }
+
+    function buildPDF(results) {
+      const W = slideW * 0.75, H = slideH * 0.75;
+      const encoder = new TextEncoder();
+      const parts = [];
+      let pos = 0;
+      function write(s) {
+        const bytes = typeof s === 'string' ? encoder.encode(s) : s; parts.push(bytes); pos += bytes.length; return bytes.length;
+      }
+      function writeLn(s) { return write(s + '\n'); }
+      writeLn('%PDF-1.4');
+      write('%\xFF\xFF\xFF\xFF\n');
+      const n = results.length;
+      const baseObj = 3;
+      const jpegBufs = results.map(r => {
+        const b64 = r.data.replace(/^data:image\/\w+;base64,/, ''), bin = atob(b64);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i); return buf;
+      });
+      const objects = [{
+        id: 1, content: '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n'
+      }];
+      const pageIds = Array.from({ length: n }, (_, i) => baseObj + i * 3);
+      objects.push({
+        id: 2, content: `2 0 obj\n<< /Type /Pages /Kids [${pageIds.map(id => id + ' 0 R').join(' ')}] /Count ${n} >>\nendobj\n`
+      });
+      for (let i = 0; i < n; i++) {
+        const pageId = baseObj + i * 3, contentId = pageId + 1, imgId = pageId + 2;
+        const res = results[i];
+        const stream = `q ${W} 0 0 ${H} 0 0 cm /Im${i} Do Q`;
+        const streamBytes = encoder.encode(stream);
+        objects.push({
+          id: pageId,
+          content: `${pageId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im${i} ${imgId} 0 R>> >> /Contents ${contentId} 0 R >>\nendobj\n`
+        });
+        objects.push({ id: contentId, bytes: streamBytes, isStream: true });
+        objects.push({
+          id: imgId, bytes: jpegBufs[i], isImage: true,
+          header: `${imgId} 0 obj\n<< /Type /XObject /Subtype /Image /Width ${res.width} /Height ${res.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBufs[i].length} >>\n`
+        });
+      }
+
+      const xrefOffsets = [];
+      for (const obj of objects) {
+        xrefOffsets.push({ id: obj.id, offset: pos });
+        if (obj.isImage) {
+          write(obj.header); write('stream\n'); write(obj.bytes); write('\nendstream\nendobj\n');
+        }
+        else if (obj.isStream) {
+          write(`${obj.id} 0 obj\n<< /Length ${obj.bytes.length}>>\nstream\n`);
+          write(obj.bytes); write('\nendstream\nendobj\n');
+        }
+        else write(obj.content);
+      }
+      const xrefPos = pos;
+      writeLn('xref'); writeLn(`0 ${objects.length + 1}`); writeLn('0000000000 65535 f ');
+      xrefOffsets.sort((a, b) => a.id - b.id).forEach(({ offset }) => writeLn(offset.toString().padStart(10, '0') + ' 00000 n '));
+      writeLn('trailer'); writeLn(`<< /Size ${objects.length + 1} /Root 1 0 R>>`); writeLn('startxref');
+      writeLn(xrefPos + ''); write('%%EOF');
+
+      const result = new Uint8Array(parts.reduce((s, b) => s + b.length, 0));
+      let off = 0;
+      for (const p of parts) {
+        result.set(p, off);
+        off += p.length;
+      }
+      return result;
+    }
+
+    // ═══════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════
+    function getDoc() {
+      const fr = document.getElementById('slide-frame'); return fr ? fr.contentDocument
+        : null;
+    }
+    function saveBack() {
+      if (!slides[cur]) return;
+      const doc = getDoc();
+      if (!doc || !doc.body) return;
+      // Guard: if the iframe body has no content at all, don't overwrite with empty
+      if (!doc.body.innerHTML.trim()) return;
+      // Guard: check srcdoc matches current slide to avoid saving wrong slide
+      const frame = document.getElementById('slide-frame');
+      if (frame && frame.srcdoc && frame.srcdoc !== slides[cur].html) {
+        // srcdoc is being reloaded — skip save to avoid overwriting with stale data
+        return;
+      }
+      const clone = doc.documentElement.cloneNode(true);
+      clone.querySelectorAll('[data-editable]').forEach(el => {
+        el.removeAttribute('data-editable');
+        el.classList.remove('selected');
+      });
+      const style = clone.querySelector('#__edit_style__'); if (style) style.remove();
+      slides[cur].html = "<!DOCTYPE html>" + clone.outerHTML;
+      clearTimeout(stripDebounce);
+      stripDebounce = setTimeout(renderStrip, 400);
+      scheduleAutoSave();
+    }
+    function rgb2hex(rgb) {
+      if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
+      const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
+      if (!m) return '';
+      return "#" + ("0" + parseInt(m[1]).toString(16)).slice(-2) + ("0" +
+        parseInt(m[2]).toString(16)).slice(-2) + ("0" + parseInt(m[3]).toString(16)).slice(-2);
+    }
+    function syncColorPicker(p, t) {
+      const pel = document.getElementById(p), tel = document.getElementById(t);
+      if (!pel || !tel) return;
+      pel.oninput = () => { tel.value = pel.value; if (p === 'bg-c') applyBg(); };
+      tel.oninput = () => {
+        if (/^#[0-9A-F]{6}$/i.test(tel.value)) {
+          pel.value = tel.value; if (t ===
+            'bg-ct') applyBg();
+        }
+      };
+    }
+    function setProgress(p) {
+      const pr = document.getElementById('prog'); if (pr) {
+        pr.style.width = (p *
+          100) + '%'; pr.style.opacity = p > 0 && p < 1 ? 1 : 0;
+      }
+    } function toast(m, type = '') {
+      const
+        t = document.getElementById('toast'); if (t) {
+          t.textContent = m; t.className = 'toast show ' + type;
+          setTimeout(() => t.classList.remove('show'), 3000);
+        }
+    }
+    function esc(s) {
+      if (!s) return ""; return s.replace(/&/g, "&amp;").replace(/</g, "&lt;"
+      ).replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+
+    // global mouseup to ensure drag clean up
+    window.addEventListener('mouseup', () => {
+      if (isDraggingEl) {
+        isDraggingEl = false; saveBack();
+        pushHistory();
+      }
+    });
+
+    // ═══════════════════════════════════════════
+    // ZOOM & UI
+    // ═══════════════════════════════════════════
+    function changeZoom(delta) { setZoom(canvasZoom + delta); }
+    function setZoom(val) {
+      canvasZoom = Math.max(0.1, Math.min(3, val));
+      const scaler = document.getElementById('canvas-scaler');
+      if (scaler) scaler.style.transform = `scale(${canvasZoom})`;
+      const hud = document.getElementById('zoom-hud-text');
+      if (hud) hud.textContent = Math.round(canvasZoom * 100) + '%';
+    }
+    function fitToWindow() {
+      const scrollBox = document.getElementById('canvas-scroll');
+      if (!scrollBox) return;
+      const padding = 100;
+      const availableW = scrollBox.clientWidth - padding;
+      const availableH = scrollBox.clientHeight - padding;
+      const scaleW = availableW / slideW;
+      const scaleH = availableH / slideH;
+      setZoom(Math.min(scaleW, scaleH, 1.0));
+    }
+    function toggleSidebar(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const isCollapsed = el.classList.toggle('collapsed');
+      const btn = el.querySelector('.collapse-btn');
+      if (id === 'strip-sidebar') { if (btn) btn.textContent = isCollapsed ? '▶' : '◀'; }
+      else { if (btn) btn.textContent = isCollapsed ? '◀' : '▶'; }
+      setTimeout(fitToWindow, 300);
+    }
+
+    // init
+    const host = document.getElementById('slide-host');
+    if (host) {
+      host.style.width = slideW + 'px';
+      host.style.height = slideH + 'px';
+    }
+    renderAll();
+    checkAutoSaveOnLoad(); // Check for auto-saved data on startup
+    // Don't call pushHistory() here — slides is empty at init,
+    // first real history entry is created after user imports slides.
+  </script>
+</body>
+
+</html>
