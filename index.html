@@ -1913,8 +1913,11 @@ ${headHTML}</head><body>${inner}</body></html>`;
 
       let lassoStart = null;
       doc.onmousedown = (e) => {
+        // Don't prevent default for inputs or contenteditable to allow focus/typing
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.contentEditable !== 'true') {
+          e.preventDefault();
+        }
         const isMulti = e.shiftKey;
-        const isExclude = e.ctrlKey || e.metaKey;
 
         if (e.target === doc.body || e.target === doc.documentElement) {
           if (!isMulti && !isExclude) {
@@ -2038,15 +2041,13 @@ ${headHTML}</head><body>${inner}</body></html>`;
         const wasDragging = isDraggingEl;
         if (lassoStart) { lassoStart = null; document.getElementById('lasso').style.display = 'none'; renderLayers(); renderPanel(); }
         isDraggingEl = false;
-        // Only save history when an actual edit (drag or lasso) occurred
         if (wasDragging || wasLasso) {
           saveBack();
           pushHistory();
         }
         renderLayers();
       };
-      doc.onkeydown = handleShortcuts; // Add shortcut listener to iframe
-      window.onmouseup = () => { isDraggingEl = false; isResizing = false; renderLayers(); };
+      doc.onkeydown = handleShortcuts;
     }
 
     function toggleShapeMenu() {
@@ -3294,10 +3295,13 @@ ${headHTML}</head><body>${inner}</body></html>`;
 
     // global mouseup to ensure drag clean up
     window.addEventListener('mouseup', () => {
+      isResizing = false;
       if (isDraggingEl) {
-        isDraggingEl = false; saveBack();
+        isDraggingEl = false;
+        saveBack();
         pushHistory();
       }
+      renderLayers();
     });
 
     // ═══════════════════════════════════════════
