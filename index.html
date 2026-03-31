@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>HTML_SLIDE_EDITOR</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pptxgenjs/3.12.0/pptxgen.bundled.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/gitbrent/PptxGenJS@3.12.0/dist/pptxgen.bundle.js"></script>
   <style>
     :root {
       --bg: #0d0d12;
@@ -3031,47 +3031,6 @@ ${headHTML}</head><body>${inner}</body></html>`;
     // ═══════════════════════════════════════════
     // EXPORT — PPTX
     // ═══════════════════════════════════════════
-    async function exportPPTX() {
-      if (!slides.length) return;
-      const btn = document.getElementById('btn-pptx');
-      btn.disabled = true; btn.textContent = '변환 중...';
-      setProgress(0.05);
-      try {
-        const pptx = new PptxGenJS();
-        pptx.layout = (slideH === 720) ? 'LAYOUT_16x9' : 'LAYOUT_4x3';
-        for (let i = 0; i < slides.length; i++) {
-          setProgress(0.05 + (i / slides.length) * 0.88);
-          const img = await captureSlide(slides[i].html);
-          const slide = pptx.addSlide();
-          slide.addImage({ data: img, x: 0, y: 0, w: '100%', h: '100%' });
-        }
-        setProgress(0.95);
-        await pptx.writeFile({ fileName: '발표자료.pptx' });
-        setProgress(1);
-        toast('PPTX 저장 완료 🎉', 'ok');
-      } catch (e) {
-        console.error(e);
-        toast('PPTX 실패: ' + e.message, 'err');
-      } finally {
-        btn.disabled = false; btn.textContent = '⬇ PPTX 저장'; setTimeout(() => setProgress(0), 700);
-      }
-    }
-
-    async function exportPNG() {
-      if (!slides.length) return;
-      const btn = document.getElementById('btn-png');
-      btn.disabled = true; btn.textContent = '저장 중...';
-      try {
-        const img = await captureSlide(slides[cur].html, 'image/png');
-        const a = document.createElement('a');
-        a.href = img;
-        a.download = `slide_${cur + 1}.png`;
-        a.click();
-        toast('PNG 저장 완료!', 'ok');
-      } catch (e) { toast('PNG 실패: ' + e.message, 'err'); }
-      finally { btn.disabled = false; btn.textContent = '🖼️ PNG 저장'; }
-    }
-
     function captureSlide(html, format = 'image/jpeg') {
       return new Promise((resolve, reject) => {
         const iframe = document.createElement('iframe');
