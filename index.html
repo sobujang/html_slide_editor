@@ -3034,14 +3034,16 @@ ${headHTML}</head><body>${inner}</body></html>`;
     function captureSlide(html, format = 'image/jpeg') {
       return new Promise((resolve, reject) => {
         const iframe = document.createElement('iframe');
-        iframe.style.cssText =
-          `position:fixed;left:-9999px;top:0;width:${slideW}px;height:${slideH}px;border:none;pointer-events:none;`;
-        iframe.sandbox = 'allow-scripts allow-same-origin';
+        iframe.style.cssText = `position:fixed;left:-9999px;top:0;width:${slideW}px;height:${slideH}px;border:none;pointer-events:none;`;
+        iframe.sandbox = 'allow-scripts allow-same-origin allow-popups';
         document.body.appendChild(iframe);
         iframe.onload = () => {
-          setTimeout(() => {
+          const doc = iframe.contentDocument;
+          const win = iframe.contentWindow;
+
+          const doCapture = () => {
             try {
-              html2canvas(iframe.contentDocument.body, {
+              html2canvas(doc.body, {
                 width: slideW, height: slideH, scale: 2,
                 useCORS: true, allowTaint: false, backgroundColor: '#ffffff', logging: false
               }).then(canvas => {
@@ -3052,9 +3054,26 @@ ${headHTML}</head><body>${inner}</body></html>`;
                   height: canvas.height
                 });
                 document.body.removeChild(iframe);
-              }).catch(e => { document.body.removeChild(iframe); reject(e); });
-            } catch (e) { document.body.removeChild(iframe); reject(e); }
-          }, 800);
+              }).catch(e => {
+                console.warn('html2canvas error:', e);
+                document.body.removeChild(iframe);
+                reject(e);
+              });
+            } catch (e) {
+              document.body.removeChild(iframe);
+              reject(e);
+            }
+          };
+
+          // Wait for fonts if supported, otherwise use a safe delay
+          if (doc.fonts && doc.fonts.ready) {
+            doc.fonts.ready.then(() => {
+              // Give it a tiny bit extra for actual glyph rendering
+              setTimeout(doCapture, 1000);
+            }).catch(() => setTimeout(doCapture, 1500));
+          } else {
+            setTimeout(doCapture, 1500); // Reliable fallback delay
+          }
         };
         iframe.srcdoc = html;
       });
