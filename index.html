@@ -1409,10 +1409,16 @@
       const state = JSON.stringify({ slides, cur });
       if (undoStack.length > 0 && undoStack[undoStack.length - 1] === state) return;
       undoStack.push(state);
-      if (undoStack.length > 50) undoStack.shift();
+      if (undoStack.length > 100) undoStack.shift(); // Increased to 100
       redoStack = [];
       updateUndoBtns();
       scheduleAutoSave();
+    }
+
+    let historyDebounce = null;
+    function pushHistoryDebounced() {
+      clearTimeout(historyDebounce);
+      historyDebounce = setTimeout(pushHistory, 800);
     }
     function undo() {
       if (undoStack.length <= 1) return;
@@ -2834,6 +2840,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       const frame = document.getElementById('slide-frame');
       // Update frame without full reload if possible, but srcdoc is easier
       frame.srcdoc = val;
+      pushHistoryDebounced();
     }
 
     function renderElementPanel(body) {
@@ -2936,8 +2943,8 @@ ${headHTML}</head><body>${inner}</body></html>`;
   </div>`;
     }
 
-    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBack(); } }
-    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBack(); } }
+    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBack(); pushHistoryDebounced(); } }
+    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBack(); pushHistoryDebounced(); } }
     function rewriteOverlay() { if (selectedEl) showOverlay(selectedEl); }
     function updatePanelFromElem() { if (activeTab === 'element') renderPanel(); }
 
@@ -2980,6 +2987,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       const val = document.getElementById('slide-title').value;
       if (slides[cur]) slides[cur].title = val;
       renderStrip();
+      pushHistory();
       toast('제목 저장됨');
     }
 
