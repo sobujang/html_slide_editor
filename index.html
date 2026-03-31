@@ -1715,9 +1715,11 @@
 
     function wrapSlide(inner, headHTML) {
       return `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style id="__edit_style__">
+<style id="__slide_base_style__">
   *{box-sizing:border-box}
   body{margin:0;padding:0;width:${slideW}px;height:${slideH}px;overflow:hidden;position:relative;background:white;font-family:sans-serif}
+</style>
+<style id="__edit_style__">
   [data-editable]{transition:outline 0.1s}
   [data-editable]:hover{outline:2px dashed var(--accent, #7c6cff)!important;cursor:pointer!important}
   [data-editable].selected{outline:2px solid var(--accent, #7c6cff)!important}
@@ -1824,7 +1826,10 @@ ${headHTML}</head><body>${inner}</body></html>`;
     // ═══════════════════════════════════════════
     function addBlankSlide() {
       const html = `<!DOCTYPE html><html><head><meta charset="UTF-8">
-<style>body{margin:0;width:${slideW}px;height:${slideH}px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;position:relative}</style>
+<style id="__slide_base_style__">
+  *{box-sizing:border-box}
+  body{margin:0;width:${slideW}px;height:${slideH}px;background:#ffffff;display:flex;align-items:center;justify-content:center;font-family:sans-serif;position:relative}
+</style>
 </head><body><div style="text-align:center;color:#333">
 <h1 style="font-size:48px;margin-bottom:16px">새 슬라이드</h1>
 <p style="font-size:20px;color:#666">내용을 입력하세요</p>
@@ -1948,22 +1953,23 @@ ${headHTML}</head><body>${inner}</body></html>`;
           renderPanel();
           renderLayers();
 
-          isDraggingEl = true;
+          // Prepare for potential dragging
+          isDraggingEl = false; // Only start dragging after movement
           dragStartX = e.clientX; dragStartY = e.clientY;
+
+          // Determine initial positions
           dragOffsets = selectedEls.map(el => {
             const cs = doc.defaultView.getComputedStyle(el);
-            if (cs.position !== 'absolute') {
-              const rectBefore = el.getBoundingClientRect();
-              el.style.width = el.offsetWidth + 'px';
-              el.style.height = el.offsetHeight + 'px';
-              el.style.position = 'absolute';
-              el.style.left = '0px';
-              el.style.top = '0px';
-              const rectAt0 = el.getBoundingClientRect();
-              el.style.left = (rectBefore.left - rectAt0.left) + 'px';
-              el.style.top = (rectBefore.top - rectAt0.top) + 'px';
-            }
-            return { el, l: parseFloat(el.style.left) || 0, t: parseFloat(el.style.top) || 0 };
+            const rect = el.getBoundingClientRect();
+
+            // If not already absolute, we will convert it ONLY on first movement to avoid jumps on click
+            return {
+              el,
+              l: parseFloat(el.style.left) || 0,
+              t: parseFloat(el.style.top) || 0,
+              initialPos: cs.position,
+              initialRect: rect
+            };
           });
         }
       };
@@ -1991,8 +1997,32 @@ ${headHTML}</head><body>${inner}</body></html>`;
           return;
         }
 
-        if (!isDraggingEl) return;
         const dx = e.clientX - dragStartX, dy = e.clientY - dragStartY;
+
+        // Confirm drag after movement threshold
+        if (!isDraggingEl && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+          isDraggingEl = true;
+          dragOffsets.forEach(obj => {
+            if (obj.initialPos !== 'absolute') {
+              const el = obj.el;
+              const rectBefore = obj.initialRect;
+              el.style.width = rectBefore.width + 'px';
+              el.style.height = rectBefore.height + 'px';
+              el.style.margin = '0';
+              el.style.position = 'absolute';
+              el.style.left = '0px';
+              el.style.top = '0px';
+              const rectAt0 = el.getBoundingClientRect();
+              const finalL = rectBefore.left - rectAt0.left;
+              const finalT = rectBefore.top - rectAt0.top;
+              el.style.left = finalL + 'px';
+              el.style.top = finalT + 'px';
+              obj.l = finalL; obj.t = finalT;
+            }
+          });
+        }
+
+        if (!isDraggingEl) return;
         dragOffsets.forEach(obj => {
           let nl = obj.l + dx, nt = obj.t + dy;
           if (obj.el === selectedEl) {
@@ -2652,19 +2682,32 @@ ${headHTML}</head><body>${inner}</body></html>`;
       const parent = selectedEl.parentNode;
       if (!parent) return;
 
+      // When moving front/back, we should also manage z-index to handle cases 
+      // where other elements have explicit z-index values.
+      const siblings = Array.from(parent.children).filter(el => el !== selectedEl && el.hasAttribute('data-editable'));
+      const zIndexes = siblings.map(el => parseInt(window.getComputedStyle(el).zIndex) || 0);
+      const maxZ = Math.max(0, ...zIndexes);
+      const minZ = Math.min(0, ...zIndexes);
+
       if (dir === 'front') {
         parent.appendChild(selectedEl);
+        selectedEl.style.zIndex = maxZ + 1;
       } else if (dir === 'back') {
         parent.insertBefore(selectedEl, parent.firstChild);
+        selectedEl.style.zIndex = Math.min(0, minZ - 1);
       } else if (dir === 'forward') {
         const next = selectedEl.nextElementSibling;
         if (next) {
           parent.insertBefore(selectedEl, next.nextElementSibling);
+          const nextZ = parseInt(window.getComputedStyle(next).zIndex) || 0;
+          selectedEl.style.zIndex = nextZ + 1;
         }
       } else if (dir === 'backward') {
         const prev = selectedEl.previousElementSibling;
         if (prev) {
           parent.insertBefore(selectedEl, prev);
+          const prevZ = parseInt(window.getComputedStyle(prev).zIndex) || 0;
+          selectedEl.style.zIndex = Math.max(0, prevZ - 1);
         }
       }
       saveBack();
@@ -2729,24 +2772,63 @@ ${headHTML}</head><body>${inner}</body></html>`;
     function renderPanel() {
       const body = document.getElementById('panel-body');
       if (!slides.length) { body.innerHTML = '<div class="empty" style="height:200px"><p>슬라이드를 추가하세요</p></div>'; return; }
-      if (activeTab === 'code') renderCodePanel(body);
+      if (activeTab === 'code') {
+        // If code editor already exists, update content only if slide changed to preserve focus/scroll
+        const existing = document.getElementById('curr-code');
+        if (!existing || existing.dataset.slideIdx != cur) {
+          renderCodePanel(body);
+        }
+        syncCodeEditor();
+      }
       else if (activeTab === 'element') renderElementPanel(body);
       else if (activeTab === 'slide') renderSlidePanel(body);
       else renderAlignPanel(body);
     }
 
     function renderCodePanel(body) {
+      if (!slides[cur]) return;
       const s = slides[cur];
       body.innerHTML = `
     <div class="psection">
       <h4>슬라이드 HTML 코드</h4>
-      <textarea class="code-editor" id="curr-code" style="min-height:340px" oninput="liveUpdateHTML(this.value)">${esc(s.html)}</textarea>
+      <textarea class="code-editor" id="curr-code" data-slide-idx="${cur}" style="min-height:450px" oninput="liveUpdateHTML(this.value)">${esc(s.html)}</textarea>
     </div>`;
     }
+
+    function syncCodeEditor() {
+      if (activeTab !== 'code' || !selectedEl) return;
+      const eid = selectedEl.dataset.eid;
+      if (!eid) return;
+
+      const textarea = document.getElementById('curr-code');
+      if (!textarea) return;
+
+      const code = textarea.value;
+      const searchStr = `data-eid="${eid}"`;
+      const index = code.indexOf(searchStr);
+
+      if (index !== -1) {
+        const startPos = code.lastIndexOf('<', index);
+        const tagEnd = code.indexOf('>', index);
+        const endPos = (tagEnd !== -1) ? tagEnd + 1 : index + searchStr.length;
+
+        textarea.focus();
+        textarea.setSelectionRange(startPos, endPos);
+
+        // Scroll into view
+        const linesBefore = code.substring(0, startPos).split('\n').length;
+        const totalLines = code.split('\n').length;
+        const scrollRatio = linesBefore / totalLines;
+        textarea.scrollTop = (textarea.scrollHeight * scrollRatio) - (textarea.clientHeight / 2);
+      }
+    }
+
     function liveUpdateHTML(val) {
       if (!slides[cur]) return;
       slides[cur].html = val;
-      document.getElementById('slide-frame').srcdoc = val;
+      const frame = document.getElementById('slide-frame');
+      // Update frame without full reload if possible, but srcdoc is easier
+      frame.srcdoc = val;
     }
 
     function renderElementPanel(body) {
@@ -2761,7 +2843,10 @@ ${headHTML}</head><body>${inner}</body></html>`;
 
       body.innerHTML = `
     <div class="psection">
-      <h4>내용 (HTML)</h4>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px">
+        <h4 style="margin:0">내용 (HTML)</h4>
+        <button class="tb-btn" style="font-size:10px; padding:2px 6px" onclick="setTab('code')">코드에서 보기 ↗</button>
+      </div>
       <textarea oninput="applyProp('innerHTML', this.value)" style="min-height:60px">${selectedEl.innerHTML}</textarea>
     </div>
     ${isText ? `
@@ -2795,6 +2880,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
         <div class="pfield"><label>X</label><input type="number" value="${parseInt(selectedEl.style.left) || 0}" oninput="applyStyle('left', this.value+'px')"></div>
         <div class="pfield"><label>Y</label><input type="number" value="${parseInt(selectedEl.style.top) || 0}" oninput="applyStyle('top', this.value+'px')"></div>
       </div>
+      <div class="pfield"><label>Z-Index (레이어 순서)</label><input type="number" value="${parseInt(cs.zIndex) || 0}" oninput="applyStyle('zIndex', this.value)"></div>
     </div>
     
     <div class="psection">
@@ -3159,11 +3245,17 @@ ${headHTML}</head><body>${inner}</body></html>`;
         el.removeAttribute('data-editable');
         el.classList.remove('selected');
       });
-      const style = clone.querySelector('#__edit_style__'); if (style) style.remove();
+      // Remove only the UI decoration styles, keep the base layout ones
+      const editStyle = clone.querySelector('#__edit_style__'); if (editStyle) editStyle.remove();
       slides[cur].html = "<!DOCTYPE html>" + clone.outerHTML;
       clearTimeout(stripDebounce);
       stripDebounce = setTimeout(renderStrip, 400);
       scheduleAutoSave();
+
+      // If code tab is active but not focused, refresh it to reflect changes
+      if (activeTab === 'code' && document.activeElement !== document.getElementById('curr-code')) {
+        renderPanel();
+      }
     }
     function rgb2hex(rgb) {
       if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
