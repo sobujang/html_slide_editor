@@ -1422,19 +1422,27 @@
     }
     function undo() {
       if (undoStack.length <= 1) return;
-      // Peek at what we'd restore — if it's empty slides, don't do it
-      const prevRaw = JSON.parse(undoStack[undoStack.length - 2]);
-      const prevSlides = Array.isArray(prevRaw) ? prevRaw : prevRaw.slides;
-      if (!prevSlides || prevSlides.length === 0) return;
+
+      const oldSlidesCount = slides.length;
+      const oldCur = cur;
+
       redoStack.push(undoStack.pop());
       const raw = JSON.parse(undoStack[undoStack.length - 1]);
+
       if (Array.isArray(raw)) {
         slides = raw;
-        cur = Math.min(cur, slides.length - 1);
       } else {
         slides = raw.slides;
-        cur = (typeof raw.cur === 'number') ? raw.cur : 0;
       }
+
+      // If the number of slides hasn't changed, try to stay on the current slide
+      // instead of jumping to where the state was originally recorded.
+      if (slides.length === oldSlidesCount) {
+        cur = oldCur;
+      } else {
+        cur = (raw && typeof raw.cur === 'number') ? raw.cur : 0;
+      }
+
       if (cur < 0) cur = 0;
       if (cur >= slides.length) cur = slides.length - 1;
       selectedEls = []; selectedEl = null; hideOverlay();
@@ -1805,6 +1813,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       });
     }
     function selectSlide(i) {
+      saveBack();
       cur = i;
       selectedEls = [];
       selectedEl = null;
@@ -3225,12 +3234,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       if (!doc || !doc.body) return;
       // Guard: if the iframe body has no content at all, don't overwrite with empty
       if (!doc.body.innerHTML.trim()) return;
-      // Guard: check srcdoc matches current slide to avoid saving wrong slide
-      const frame = document.getElementById('slide-frame');
-      if (frame && frame.srcdoc && frame.srcdoc !== slides[cur].html) {
-        // srcdoc is being reloaded — skip save to avoid overwriting with stale data
-        return;
-      }
+
       const clone = doc.documentElement.cloneNode(true);
       clone.querySelectorAll('[data-editable]').forEach(el => {
         el.removeAttribute('data-editable');
