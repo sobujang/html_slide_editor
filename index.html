@@ -1649,7 +1649,7 @@
     }
 
     let historyDebounce = null;
-    let saveDebounce = null;
+    let saveDebounce = null; // Single declaration here
     function pushHistoryDebounced() {
       clearTimeout(historyDebounce);
       historyDebounce = setTimeout(pushHistory, 800);
@@ -2475,7 +2475,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
         const oR = groupRect.right + finalDX, oB = groupRect.bottom + finalDY;
         const oCX = oL + gW / 2, oCY = oT + gH / 2;
 
-        const SNAP_T = 5; // Reduced threshold for smoother feel
+        const SNAP_T = 6;
         let bestX = { dist: SNAP_T, val: null, target: null }, bestY = { dist: SNAP_T, val: null, target: null };
 
         const checkSnap = (targetV, currentV, axis) => {
@@ -2488,18 +2488,17 @@ ${headHTML}</head><body>${inner}</body></html>`;
           }
         };
 
-        // Targets: other elements
+        // Targets: other elements' centers ONLY
         snapshotOtherRects.forEach(obj => {
           const r = obj.rect;
           const cx = r.left + (r.right - r.left) / 2, cy = r.top + (r.bottom - r.top) / 2;
-          [r.left, r.right, cx].forEach(t => { [oL, oR, oCX].forEach(c => checkSnap(t, c, 'x')); });
-          [r.top, r.bottom, cy].forEach(t => { [oT, oB, oCY].forEach(c => checkSnap(t, c, 'y')); });
+          checkSnap(cx, oCX, 'x');
+          checkSnap(cy, oCY, 'y');
         });
 
-        // Targets: Slide boundaries (0, center, end)
-        // Note: 0 and slideW are local to iframe. 
-        [0, slideW / 2, slideW].forEach(t => { [oL, oR, oCX].forEach(c => checkSnap(t, c, 'x')); });
-        [0, slideH / 2, slideH].forEach(t => { [oT, oB, oCY].forEach(c => checkSnap(t, c, 'y')); });
+        // Targets: Slide centers ONLY
+        checkSnap(slideW / 2, oCX, 'x');
+        checkSnap(slideH / 2, oCY, 'y');
 
         if (bestX.val !== null) { finalDX = bestX.val; activeLines.push({ pos: bestX.target, type: 'v' }); }
         if (bestY.val !== null) { finalDY = bestY.val; activeLines.push({ pos: bestY.target, type: 'h' }); }
@@ -2614,59 +2613,60 @@ ${headHTML}</head><body>${inner}</body></html>`;
     function getDoc() {
       const fr = document.getElementById('slide-frame'); return fr ? fr.contentDocument : null;
     }
-    function saveBack() {
-      if (!slides[cur]) return;
-      const doc = getDoc();
-      if (!doc || !doc.body) return;
-      if (!doc.body.innerHTML.trim()) return;
 
-      const clone = doc.documentElement.cloneNode(true);
-      clone.querySelectorAll('[data-editable]').forEach(el => {
-        el.removeAttribute('data-editable');
-        el.classList.remove('selected');
-      });
-      const editStyle = clone.querySelector('#__edit_style__'); if (editStyle) editStyle.remove();
-      slides[cur].html = "<!DOCTYPE html>" + clone.outerHTML;
-      clearTimeout(stripDebounce);
-      stripDebounce = setTimeout(renderStrip, 400);
-      scheduleAutoSave();
-      saveCurrentToProject();
+    // Single declaration of saveBack and timing helpers
+    function saveBack() {
+      if (!slides.length) return;
+      const doc = getDoc(); if (!doc) return;
+      const b = doc.body;
+      const s = doc.getElementById('__edit_style__'); if (s) s.remove();
+      doc.querySelectorAll('[contenteditable]').forEach(x => x.removeAttribute('contenteditable'));
+      doc.querySelectorAll('.selected').forEach(x => x.classList.remove('selected'));
+      slides[cur].html = `<!DOCTYPE html><html>${doc.documentElement.innerHTML}</html>`;
+      renderStrip();
     }
-    function rgb2hex(rgb) {
-      if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
-      const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
-      if (!m) return '';
-      return "#" + ("0" + parseInt(m[1]).toString(16)).slice(-2) + ("0" +
-        parseInt(m[2]).toString(16)).slice(-2) + ("0" + parseInt(m[3]).toString(16)).slice(-2);
-    }
-    function syncColorPicker(p, t) {
-      const pel = document.getElementById(p), tel = document.getElementById(t);
-      if (!pel || !tel) return;
-      pel.oninput = () => { tel.value = pel.value; if (p === 'bg-c') applyBg(); };
-      tel.oninput = () => {
-        if (/^#[0-9A-F]{6}$/i.test(tel.value)) {
-          pel.value = tel.value; if (t ===
-            'bg-ct') applyBg();
-        }
-      };
-    }
-    function setProgress(p) {
-      const pr = document.getElementById('prog'); if (pr) {
-        pr.style.width = (p *
-          100) + '%'; pr.style.opacity = p > 0 && p < 1 ? 1 : 0;
+    function saveBackDebounced() { clearTimeout(saveDebounce); saveDebounce = setTimeout(saveBack, 500); }
+
+    function handleShortcuts(e) {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
+        if (e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+        if (e.key.toLowerCase() === 's') { e.preventDefault(); manualSave(); }
+        if (e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateElem(); }
+        if (e.key.toLowerCase() === 'c') { e.preventDefault(); copyElem(); }
+        if (e.key.toLowerCase() === 'v') { e.preventDefault(); pasteElem(); }
       }
-    } function toast(m, type = '') {
-      const
-        t = document.getElementById('toast'); if (t) {
-          t.textContent = m; t.className = 'toast show ' + type;
-          setTimeout(() => t.classList.remove('show'), 3000);
-        }
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA' && e.target.contentEditable !== 'true') deleteElem();
+      }
     }
+
+    function manualSave() { saveCurrentToProject(); toast('저장 완료', 'ok'); }
+
+    function scheduleAutoSave() {
+      clearTimeout(autoSaveDebounce);
+      const dot = document.getElementById('autosave-dot');
+      const label = document.getElementById('autosave-label');
+      document.getElementById('autosave-status').style.display = 'flex';
+      if (dot) dot.style.background = '#ffc107'; if (label) label.textContent = '변경됨...';
+      autoSaveDebounce = setTimeout(() => {
+        saveCurrentToProject();
+        if (dot) dot.style.background = '#28a745'; if (label) label.textContent = '자동저장됨';
+      }, 3000);
+    }
+
+    function toast(txt, type = 'info') {
+      const t = document.getElementById('toast');
+      t.textContent = txt; t.className = 'toast show ' + type;
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
     function esc(s) {
       if (!s) return ""; return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     }
     function rgb2hex(rgb) {
       if (!rgb || rgb === 'transparent' || rgb.indexOf('rgba(0, 0, 0, 0)') === 0) return '';
+      if (rgb.startsWith('#')) return rgb;
       const m = rgb.match(/^rgb\((\d+),\s*(\d+),\s*(\d+)\)$/);
       if (!m) return rgb;
       return "#" + ("0" + parseInt(m[1], 10).toString(16)).slice(-2) + ("0" + parseInt(m[2], 10).toString(16)).slice(-2) + ("0" + parseInt(m[3], 10).toString(16)).slice(-2);
@@ -2866,21 +2866,46 @@ ${headHTML}</head><body>${inner}</body></html>`;
       body.innerHTML = `<div class="psection"><h4>HTML 코드</h4><textarea class="code-editor" style="min-height:400px" oninput="liveUpdateHTML(this.value)">${esc(slides[cur].html)}</textarea></div>`;
     }
     function liveUpdateHTML(val) { slides[cur].html = val; document.getElementById('slide-frame').srcdoc = val; pushHistoryDebounced(); }
+
     function renderElementPanel(body) {
       if (!selectedEl) { body.innerHTML = '<div class="empty">요소를 선택하세요</div>'; return; }
+      const frame = document.getElementById('slide-frame');
+      const cs = frame.contentWindow.getComputedStyle(selectedEl);
+
       body.innerHTML = `
         <div class="psection">
-          <h4>속성 편집</h4>
-          <div class="pfield"><label>내용</label><textarea oninput="applyProp('innerHTML', this.value)">${selectedEl.innerHTML}</textarea></div>
+          <h4>위치 및 크기</h4>
           <div class="row2">
             <div class="pfield"><label>X</label><input type="number" value="${parseInt(selectedEl.style.left) || 0}" oninput="applyStyle('left', this.value+'px')"></div>
             <div class="pfield"><label>Y</label><input type="number" value="${parseInt(selectedEl.style.top) || 0}" oninput="applyStyle('top', this.value+'px')"></div>
           </div>
           <div class="row2">
-            <div class="pfield"><label>W</label><input type="number" value="${parseInt(selectedEl.style.width) || 0}" oninput="applyStyle('width', this.value+'px')"></div>
-            <div class="pfield"><label>H</label><input type="number" value="${parseInt(selectedEl.style.height) || 0}" oninput="applyStyle('height', this.value+'px')"></div>
+            <div class="pfield"><label>너비</label><input type="number" value="${parseInt(selectedEl.style.width) || selectedEl.offsetWidth}" oninput="applyStyle('width', this.value+'px')"></div>
+            <div class="pfield"><label>높이</label><input type="number" value="${parseInt(selectedEl.style.height) || selectedEl.offsetHeight}" oninput="applyStyle('height', this.value+'px')"></div>
           </div>
-          <div class="pfield"><label>배경색</label><input type="color" value="${rgb2hex(selectedEl.style.backgroundColor) || '#ffffff'}" oninput="applyStyle('backgroundColor', this.value)"></div>
+        </div>
+
+        <div class="psection">
+          <h4>텍스트</h4>
+          <div class="pfield"><label>내용</label><textarea oninput="applyProp('innerHTML', this.value)">${selectedEl.innerHTML}</textarea></div>
+          <div class="row2">
+            <div class="pfield"><label>폰트 크기</label><input type="number" value="${parseInt(cs.fontSize) || 16}" oninput="applyStyle('fontSize', this.value+'px')"></div>
+            <div class="pfield"><label>글자 두께</label>
+              <select onchange="applyStyle('fontWeight', this.value)">
+                <option value="400" ${cs.fontWeight === '400' ? 'selected' : ''}>보통</option>
+                <option value="700" ${cs.fontWeight === '700' ? 'selected' : ''}>굵게</option>
+                <option value="900" ${cs.fontWeight === '900' ? 'selected' : ''}>매우굵게</option>
+              </select>
+            </div>
+          </div>
+          <div class="pfield"><label>글자 색상</label><input type="color" value="${rgb2hex(cs.color) || '#000000'}" oninput="applyStyle('color', this.value)"></div>
+        </div>
+
+        <div class="psection">
+          <h4>스타일</h4>
+          <div class="pfield"><label>배경색</label><input type="color" value="${rgb2hex(cs.backgroundColor) || '#ffffff'}" oninput="applyStyle('backgroundColor', this.value)"></div>
+          <div class="pfield"><label>불투명도</label><input type="range" min="0" max="1" step="0.1" value="${cs.opacity || 1}" oninput="applyStyle('opacity', this.value)"></div>
+          <div class="pfield"><label>라운딩</label><input type="number" value="${parseInt(cs.borderRadius) || 0}" oninput="applyStyle('borderRadius', this.value+'px')"></div>
         </div>
       `;
     }
@@ -2893,7 +2918,7 @@ ${headHTML}</head><body>${inner}</body></html>`;
       body.innerHTML = `
         <div class="psection">
           <h4>슬라이드 설정</h4>
-          <div class="pfield"><label>제목</label><input type="text" value="${s.title}" oninput="slides[cur].title=this.value; renderStrip()"></div>
+          <div class="pfield"><label>슬라이드 제목</label><input type="text" value="${s.title || ''}" oninput="slides[cur].title=this.value; renderStrip()"></div>
         </div>
       `;
     }
@@ -2902,12 +2927,12 @@ ${headHTML}</head><body>${inner}</body></html>`;
         <div class="psection">
           <h4>정렬</h4>
           <div class="align-grid">
-            <button class="align-btn" onclick="alignElem('left')">왼쪽</button><button class="align-btn" onclick="alignElem('center')">가운데</button><button class="align-btn" onclick="alignElem('right')">오른쪽</button>
-            <button class="align-btn" onclick="alignElem('top')">위</button><button class="align-btn" onclick="alignElem('middle')">가운데</button><button class="align-btn" onclick="alignElem('bottom')">아래</button>
+            <button class="align-btn" onclick="alignElem('left')">좌</button><button class="align-btn" onclick="alignElem('center')">중</button><button class="align-btn" onclick="alignElem('right')">우</button>
+            <button class="align-btn" onclick="alignElem('top')">상</button><button class="align-btn" onclick="alignElem('middle')">중</button><button class="align-btn" onclick="alignElem('bottom')">하</button>
           </div>
-          <h4 style="margin-top:20px">순서</h4>
+          <h4 style="margin-top:20px">배치 순서</h4>
           <div class="align-grid">
-            <button class="align-btn" onclick="moveLayer('front')">맨앞</button><button class="align-btn" onclick="moveLayer('back')">맨뒤</button>
+            <button class="align-btn" onclick="moveLayer('front')">맨앞으로</button><button class="align-btn" onclick="moveLayer('back')">맨뒤로</button>
           </div>
         </div>
       `;
