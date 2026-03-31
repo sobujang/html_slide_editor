@@ -1416,6 +1416,7 @@
     }
 
     let historyDebounce = null;
+    let saveDebounce = null;
     function pushHistoryDebounced() {
       clearTimeout(historyDebounce);
       historyDebounce = setTimeout(pushHistory, 800);
@@ -1813,6 +1814,9 @@ ${headHTML}</head><body>${inner}</body></html>`;
       });
     }
     function selectSlide(i) {
+      // pending debounce를 즉시 flush해서 편집 내용 유실 방지
+      if (saveDebounce) { clearTimeout(saveDebounce); saveBack(); saveDebounce = null; }
+      if (historyDebounce) { clearTimeout(historyDebounce); pushHistory(); historyDebounce = null; }
       saveBack();
       cur = i;
       selectedEls = [];
@@ -2952,8 +2956,12 @@ ${headHTML}</head><body>${inner}</body></html>`;
   </div>`;
     }
 
-    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBack(); pushHistoryDebounced(); } }
-    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBack(); pushHistoryDebounced(); } }
+    function saveBackDebounced() {
+      clearTimeout(saveDebounce);
+      saveDebounce = setTimeout(saveBack, 200);
+    }
+    function applyProp(k, v) { if (selectedEl) { selectedEl[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
+    function applyStyle(k, v) { if (selectedEl) { selectedEl.style[k] = v; rewriteOverlay(); saveBackDebounced(); pushHistoryDebounced(); } }
     function rewriteOverlay() { if (selectedEl) showOverlay(selectedEl); }
     function updatePanelFromElem() { if (activeTab === 'element') renderPanel(); }
 
