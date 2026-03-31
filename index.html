@@ -3082,17 +3082,19 @@ ${headHTML}</head><body>${inner}</body></html>`;
             }
           };
 
-          // Wait for fonts if supported, otherwise use a safe delay
           if (doc.fonts && doc.fonts.ready) {
             doc.fonts.ready.then(() => {
-              // Give it a tiny bit extra for actual glyph rendering
-              setTimeout(doCapture, 1000);
-            }).catch(() => setTimeout(doCapture, 1500));
+              setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1000);
+            }).catch(() => {
+              setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1500);
+            });
           } else {
-            setTimeout(doCapture, 1500); // Reliable fallback delay
+            setTimeout(() => { doCapture(); URL.revokeObjectURL(url); }, 1500);
           }
         };
-        iframe.srcdoc = html;
+        const blob = new Blob([html], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        iframe.src = url;
       });
     }
 
